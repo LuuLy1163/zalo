@@ -160,7 +160,7 @@ const Register = () => {
     <div className="container-register">
       <div className="form-register">
         <span className="title">Zalo</span>
-        <div id="recaptcha-container" style={{ display: "none" }}></div>
+        <div id="recaptcha-container"></div>
 
         {step === 1 ? (
           <>
