@@ -21,15 +21,20 @@ const Register = () => {
   const checkPhoneExists = async () => {
     try {
       const res = await fetch(`http://localhost:5000/api/auth/check-phone?phone=${phone}`);
+      if (!res.ok) throw new Error("Không thể kiểm tra số điện thoại");
+  
       const data = await res.json();
-      setPhoneExists(data.exists);
-      return data.exists;
+      const exists = data?.exists ?? false;
+      setPhoneExists(exists);
+      return exists;
     } catch (err) {
       console.error("Lỗi khi kiểm tra số điện thoại:", err);
-      setPhoneExists(true);
-      return true;
+   
+      setPhoneExists(false); // Để UI không bị hiểu lầm
+      return false; // xử lý như là số chưa tồn tại
     }
   };
+  
 
   const setupRecaptcha = () => {
     if (!window.recaptchaVerifier) {
