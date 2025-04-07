@@ -113,6 +113,11 @@ function Home(props) {
   return (
     <AppProvider
       navigation={NAVIGATION}
+      branding={{
+        logo: <img src="https://mui.com/static/logo.png" alt="ZALO logo" />,
+        title: 'ZALO',
+        homeUrl: '/toolpad/core/introduction',
+      }}
       router={router}
       theme={demoTheme}
       authentication={authentication}
