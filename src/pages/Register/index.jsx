@@ -55,24 +55,31 @@ const Register = () => {
       alert("Vui lòng nhập số điện thoại");
       return;
     }
-
+  
     if (!/^\d{9,11}$/.test(phone)) {
       alert("Số điện thoại không hợp lệ");
       return;
     }
-
+  
     const exists = await checkPhoneExists();
     if (exists) {
       alert("Số điện thoại đã tồn tại, vui lòng dùng số khác.");
       return;
     }
-
+  
     setupRecaptcha();
     const appVerifier = window.recaptchaVerifier;
-    const fullPhone = "+84" + phone.slice(1); // ví dụ: 0976 => +84976...
-
+  
+    // ✅ Sửa chỗ này để đảm bảo chuẩn quốc tế
+    let formattedPhone = phone.trim();
+    if (formattedPhone.startsWith("0")) {
+      formattedPhone = "+84" + formattedPhone.slice(1);
+    } else if (!formattedPhone.startsWith("+")) {
+      formattedPhone = "+" + formattedPhone;
+    }
+  
     try {
-      const confirmation = await signInWithPhoneNumber(auth, fullPhone, appVerifier);
+      const confirmation = await signInWithPhoneNumber(auth, formattedPhone, appVerifier);
       setConfirmationResult(confirmation);
       alert("Mã OTP đã được gửi!");
       setStep(2);
@@ -81,6 +88,7 @@ const Register = () => {
       alert("Gửi OTP thất bại. Vui lòng kiểm tra lại số điện thoại.");
     }
   };
+  
 
   const handleVerifyOTP = async () => {
     if (!otp.trim()) {
