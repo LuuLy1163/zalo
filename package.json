@@ -33,5 +33,18 @@
     "eslint-plugin-react-refresh": "^0.4.19",
     "globals": "^15.15.0",
     "vite": "^6.2.0"
-  }
+  },
+  "description": "Mẫu này cung cấp thiết lập tối thiểu để chạy React với Vite, bao gồm HMR và một số quy tắc ESLint.",
+  "main": "eslint.config.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LuuLy1163/zalo.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/LuuLy1163/zalo/issues"
+  },
+  "homepage": "https://github.com/LuuLy1163/zalo#readme"
 }
