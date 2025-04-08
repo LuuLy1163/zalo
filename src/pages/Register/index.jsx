@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { Alert } from "@mui/material"; // 💡 Thêm import này
 import "@fortawesome/fontawesome-free/css/all.min.css";
 import "./Register.css";
 import avt from "../../assets/images/User-avatar.svg.png";
@@ -16,116 +17,91 @@ const Register = () => {
   const [step, setStep] = useState(1);
   const [phoneExists, setPhoneExists] = useState(false);
   const [confirmationResult, setConfirmationResult] = useState(null);
+  const [alertMsg, setAlertMsg] = useState({ open: false, severity: "", message: "" }); // 🔥
+
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (alertMsg.open) {
+      const timer = setTimeout(() => setAlertMsg({ ...alertMsg, open: false }), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [alertMsg]);
+
+  const showAlert = (severity, message) => {
+    setAlertMsg({ open: true, severity, message });
+  };
 
   const checkPhoneExists = async () => {
     try {
       const res = await fetch(`http://localhost:5000/api/auth/check-phone?phone=${phone}`);
-      if (!res.ok) throw new Error("Không thể kiểm tra số điện thoại");
-  
       const data = await res.json();
-      const exists = data?.exists ?? false;
-      setPhoneExists(exists);
-      return exists;
+      setPhoneExists(data.exists);
+      return data.exists;
     } catch (err) {
       console.error("Lỗi khi kiểm tra số điện thoại:", err);
-   
-      setPhoneExists(false); // Để UI không bị hiểu lầm
-      return false; // xử lý như là số chưa tồn tại
+      setPhoneExists(true);
+      return true;
     }
   };
-  
 
   const setupRecaptcha = () => {
     if (!window.recaptchaVerifier) {
       window.recaptchaVerifier = new RecaptchaVerifier(auth, "recaptcha-container", {
         size: "invisible",
-        callback: (response) => {
-          console.log("reCAPTCHA solved:", response);
-          // Không gọi lại handleSendOTP
-        },
-        'expired-callback': () => {
-          alert("Mã xác thực hết hạn, vui lòng thử lại!");
+        callback: () => {},
+        "expired-callback": () => {
+          showAlert("warning", "Mã xác thực hết hạn, vui lòng thử lại!");
         }
       });
-      window.recaptchaVerifier.render().then((widgetId) => {
+      window.recaptchaVerifier.render().then(widgetId => {
         window.recaptchaWidgetId = widgetId;
       });
     }
   };
-  
 
   const handleSendOTP = async () => {
-    if (phone.trim() === "") {
-      alert("Vui lòng nhập số điện thoại");
-      return;
-    }
-  
-    if (!/^\d{9,11}$/.test(phone)) {
-      alert("Số điện thoại không hợp lệ");
-      return;
-    }
-  
+    if (phone.trim() === "") return showAlert("warning", "Vui lòng nhập số điện thoại");
+    if (!/^\d{9,11}$/.test(phone)) return showAlert("error", "Số điện thoại không hợp lệ");
+
     const exists = await checkPhoneExists();
-    if (exists) {
-      alert("Số điện thoại đã tồn tại, vui lòng dùng số khác.");
-      return;
-    }
-  
+    if (exists) return showAlert("error", "Số điện thoại đã tồn tại, vui lòng dùng số khác.");
+
     setupRecaptcha();
     const appVerifier = window.recaptchaVerifier;
-  
-    // ✅ Sửa chỗ này để đảm bảo chuẩn quốc tế
-    let formattedPhone = phone.trim();
-    if (formattedPhone.startsWith("0")) {
-      formattedPhone = "+84" + formattedPhone.slice(1);
-    } else if (!formattedPhone.startsWith("+")) {
-      formattedPhone = "+" + formattedPhone;
-    }
-  
+    const fullPhone = "+84" + phone.slice(1);
+
     try {
-      const confirmation = await signInWithPhoneNumber(auth, formattedPhone, appVerifier);
+      const confirmation = await signInWithPhoneNumber(auth, fullPhone, appVerifier);
       setConfirmationResult(confirmation);
-      alert("Mã OTP đã được gửi!");
+      showAlert("success", "Mã OTP đã được gửi!");
       setStep(2);
     } catch (error) {
       console.error("Lỗi gửi OTP:", error);
-      alert("Gửi OTP thất bại. Vui lòng kiểm tra lại số điện thoại.");
+      showAlert("error", "Gửi OTP thất bại. Vui lòng kiểm tra lại số điện thoại.");
     }
   };
-  
 
   const handleVerifyOTP = async () => {
-    if (!otp.trim()) {
-      alert("Vui lòng nhập mã OTP");
-      return;
-    }
+    if (!otp.trim()) return showAlert("warning", "Vui lòng nhập mã OTP");
 
     try {
       await confirmationResult.confirm(otp);
-      alert("Xác thực OTP thành công!");
+      showAlert("success", "Xác thực OTP thành công!");
       setStep(3);
     } catch (err) {
       console.error("Lỗi xác thực OTP:", err);
-      alert("Mã OTP không đúng hoặc đã hết hạn.");
+      showAlert("error", "Mã OTP không đúng hoặc đã hết hạn.");
     }
   };
 
   const handleRegister = async () => {
-    if (!password || !confirmPassword) {
-      alert("Vui lòng nhập mật khẩu và xác nhận mật khẩu");
-      return;
-    }
+    if (!password || !confirmPassword) return showAlert("warning", "Vui lòng nhập mật khẩu và xác nhận mật khẩu");
 
-    if (!/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,}$/.test(password)) {
-      alert("Mật khẩu phải ít nhất 6 ký tự, có cả chữ và số");
-      return;
-    }
+    if (!/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,}$/.test(password))
+      return showAlert("error", "Mật khẩu phải ít nhất 6 ký tự, có cả chữ và số");
 
-    if (password !== confirmPassword) {
-      alert("Mật khẩu không khớp");
-      return;
-    }
+    if (password !== confirmPassword) return showAlert("error", "Mật khẩu không khớp");
 
     try {
       const avatarResponse = await fetch(avt);
@@ -152,20 +128,20 @@ const Register = () => {
       } catch (e) {
         const text = await res.text();
         console.error("Phản hồi không hợp lệ:", text);
-        alert("Lỗi server. Vui lòng thử lại sau.");
+        showAlert("error", "Lỗi server. Vui lòng thử lại sau.");
         return;
       }
 
       if (!res.ok) {
-        alert(data?.error || data?.message || "Đăng ký thất bại");
+        showAlert("error", data?.error || data?.message || "Đăng ký thất bại");
         return;
       }
 
-      alert("Đăng ký thành công!");
-      navigate("/"); // ✅ điều hướng đến trang home
+      showAlert("success", "Đăng ký thành công!");
+      setTimeout(() => navigate("/login"), 1000);
     } catch (error) {
       console.error("Lỗi khi đăng ký:", error);
-      alert("Đã xảy ra lỗi khi đăng ký.");
+      showAlert("error", "Đã xảy ra lỗi khi đăng ký.");
     }
   };
 
@@ -175,9 +151,14 @@ const Register = () => {
         <span className="title">Zalo</span>
         <div id="recaptcha-container"></div>
 
+        {alertMsg.open && (
+          <Alert variant="filled" severity={alertMsg.severity} style={{ marginBottom: 16 }}>
+            {alertMsg.message}
+          </Alert>
+        )}
+
         {step === 1 ? (
           <>
-      
             <span className="subtitle">Tạo tài khoản mới</span>
             <p className="content">
               Vui lòng nhập số điện thoại chưa từng đăng ký hoặc đăng nhập tài khoản Zalo.
@@ -200,9 +181,7 @@ const Register = () => {
                   }}
                   onBlur={checkPhoneExists}
                 />
-                {phoneExists && (
-                  <p className="error-text">Số điện thoại đã tồn tại</p>
-                )}
+                {phoneExists && <p className="error-text">Số điện thoại đã tồn tại</p>}
               </div>
               <button
                 className="button-send-otp"
