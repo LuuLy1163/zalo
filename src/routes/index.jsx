@@ -5,15 +5,20 @@ import Contact from '../pages/Contact';
 import NotFound from '../pages/NotFound';
 import Register from '../pages/Register' 
 import SignLogin from '../pages/SignLogin';
+import ForgotPassword from '../pages/ForgotPassword';
 
 export const router = createBrowserRouter([
-  // {
-  //   path: '/',
-  //   element: <SignLogin />,
-  // },
   {
     path: '/',
-    element: <Home />,
+    element: <SignLogin />,
+  },
+  // {
+  //   path: '/',
+  //   element: <Home />,
+  // },
+  {
+    path: '/forgot-password',
+    element: <ForgotPassword />,
   },
   {
     path: '/register',

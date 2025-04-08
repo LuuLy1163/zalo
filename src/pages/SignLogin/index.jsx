@@ -91,7 +91,7 @@ const SignLogin = () => {
               </button>
               <span
                 onClick={() =>
-                  navigate("/forget-password", {
+                  navigate("/forgot-password", {
                     state: { urlBackend: "your_backend_url" },
                   })
                 }
