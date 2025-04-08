@@ -1,13 +1,22 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "@fortawesome/fontawesome-free/css/all.min.css";
+import { Alert, Snackbar } from "@mui/material";
 import "./SignLogin.css";
 
 const SignLogin = () => {
   const [isLoginByPhone, setIsLoginByPhone] = useState(true);
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
+  const [alert, setAlert] = useState({ message: "", severity: "info" });
+  const [openAlert, setOpenAlert] = useState(false);
+
   const navigate = useNavigate();
+
+  const showAlert = (message, severity = "info") => {
+    setAlert({ message, severity });
+    setOpenAlert(true);
+  };
 
   const handleKeyPress = (e) => {
     if (e.key === "Enter") {
@@ -15,12 +24,57 @@ const SignLogin = () => {
     }
   };
 
-  const handleClickLogin = () => {
-    console.log("Đăng nhập với:", phone, password);
+  const handleClickLogin = async () => {
+    if (!phone || !password) {
+      showAlert("Vui lòng nhập đầy đủ thông tin", "warning");
+      return;
+    }
+
+    try {
+      const response = await fetch("http://localhost:5000/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ phoneNumber: phone, password }),
+      });
+
+      const data = await response.json();
+      console.log("Login response:", data);
+
+      if (!response.ok) {
+        showAlert(data?.error || data?.message || "Đăng nhập thất bại", "error");
+        return;
+      }
+
+      // Lưu token & user vào localStorage
+      localStorage.setItem("accessToken", data.data.accessToken);
+      localStorage.setItem("user", JSON.stringify(data.data.user));
+
+      showAlert("Đăng nhập thành công!", "success");
+
+      setTimeout(() => {
+        navigate("/"); // hoặc điều hướng sang dashboard
+      }, 1000);
+    } catch (err) {
+      console.error("Lỗi đăng nhập:", err);
+      showAlert("Lỗi kết nối server. Vui lòng thử lại", "error");
+    }
   };
 
   return (
     <div className="container-login">
+      <Snackbar
+        open={openAlert}
+        autoHideDuration={3000}
+        onClose={() => setOpenAlert(false)}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+      >
+        <Alert severity={alert.severity} variant="filled">
+          {alert.message}
+        </Alert>
+      </Snackbar>
+
       <div className="form-login">
         <span className="title">Zalo</span>
         <span className="content">
@@ -105,7 +159,7 @@ const SignLogin = () => {
               <div className="qrcode">
                 <img
                   src="your_qr_code_src"
-                  alt=""
+                  alt="QR Code"
                   style={{ marginTop: -20, width: "250px", height: "250px" }}
                 />
                 <div
