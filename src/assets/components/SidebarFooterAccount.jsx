@@ -4,20 +4,25 @@ import { Account } from '@toolpad/core/Account';
 import AccountSidebarPreview from './AccountSidebarPreview';
 import SidebarFooterAccountPopover from './SidebarFooterAccountPopover';
 
-const createPreviewComponent = (mini) => {
+const createPreviewComponent = (mini, user) => {
   return function PreviewComponent(props) {
-    return <AccountSidebarPreview {...props} mini={mini} />;
+    return <AccountSidebarPreview {...props} mini={mini} user={user} />;
   };
 };
 
-function SidebarFooterAccount({ mini }) {
-  const PreviewComponent = React.useMemo(() => createPreviewComponent(mini), [mini]);
+function SidebarFooterAccount({ mini, user }) {
+  const PreviewComponent = React.useMemo(() => createPreviewComponent(mini, user), [mini, user]);
 
   return (
     <Account
+      user={{
+        name: user?.username,        // ✅ Đổi từ "username" thành "name"
+        email: user?.email,
+        avatar: user?.avatarURL,
+      }}
       slots={{
         preview: PreviewComponent,
-        popoverContent: SidebarFooterAccountPopover,
+        popoverContent: () => <SidebarFooterAccountPopover user={user} />,
       }}
       slotProps={{
         popover: {
@@ -30,7 +35,11 @@ function SidebarFooterAccount({ mini }) {
               sx: {
                 overflow: 'visible',
                 filter: (theme) =>
-                  `drop-shadow(0px 2px 8px ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.32)'})`,
+                  `drop-shadow(0px 2px 8px ${
+                    theme.palette.mode === 'dark'
+                      ? 'rgba(255,255,255,0.10)'
+                      : 'rgba(0,0,0,0.32)'
+                  })`,
                 mt: 1,
                 '&::before': {
                   content: '""',
@@ -55,6 +64,7 @@ function SidebarFooterAccount({ mini }) {
 
 SidebarFooterAccount.propTypes = {
   mini: PropTypes.bool.isRequired,
+  user: PropTypes.object,
 };
 
 export default SidebarFooterAccount;
