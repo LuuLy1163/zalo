@@ -1,14 +1,13 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Alert } from "@mui/material"; // 💡 Thêm import này
+import { Alert } from "@mui/material";
 import "@fortawesome/fontawesome-free/css/all.min.css";
 import "./Register.css";
 import avt from "../../assets/images/User-avatar.svg.png";
-import { auth } from "../../assets/components/Firebase";
-import { RecaptchaVerifier, signInWithPhoneNumber } from "firebase/auth";
 
 const Register = () => {
   const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -16,8 +15,8 @@ const Register = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [step, setStep] = useState(1);
   const [phoneExists, setPhoneExists] = useState(false);
-  const [confirmationResult, setConfirmationResult] = useState(null);
-  const [alertMsg, setAlertMsg] = useState({ open: false, severity: "", message: "" }); // 🔥
+  const [alertMsg, setAlertMsg] = useState({ open: false, severity: "", message: "" });
+  const [otpToken, setOtpToken] = useState(null);
 
   const navigate = useNavigate();
 
@@ -32,71 +31,82 @@ const Register = () => {
     setAlertMsg({ open: true, severity, message });
   };
 
-  const checkPhoneExists = async () => {
+  const checkPhoneAndEmailExists = async () => {
     try {
-      const res = await fetch(`http://localhost:5000/api/auth/check-phone?phone=${phone}`);
-      const data = await res.json();
-      setPhoneExists(data.exists);
-      return data.exists;
-    } catch (err) {
-      console.error("Lỗi khi kiểm tra số điện thoại:", err);
-      setPhoneExists(true);
-      return true;
-    }
-  };
+      const res = await fetch("http://localhost:5000/api/auth/checkPhoneAndEmail", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phoneNumber: phone, email }),
+      });
 
-  const setupRecaptcha = () => {
-    if (!window.recaptchaVerifier) {
-      window.recaptchaVerifier = new RecaptchaVerifier(auth, "recaptcha-container", {
-        size: "invisible",
-        callback: () => {},
-        "expired-callback": () => {
-          showAlert("warning", "Mã xác thực hết hạn, vui lòng thử lại!");
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.message || "Lỗi kiểm tra số điện thoại/email");
+
+      if (data.exists) {
+        if (data.phoneExists) {
+          setPhoneExists(true);
+          showAlert("error", "Số điện thoại đã tồn tại.");
+        } else if (data.emailExists) {
+          showAlert("error", "Email đã tồn tại.");
         }
-      });
-      window.recaptchaVerifier.render().then(widgetId => {
-        window.recaptchaWidgetId = widgetId;
-      });
+        return true;
+      }
+
+      setPhoneExists(false);
+      return false;
+    } catch (err) {
+      console.error("Lỗi khi kiểm tra tồn tại:", err);
+      setPhoneExists(true);
+      showAlert("error", "Không thể kiểm tra thông tin. Vui lòng thử lại.");
+      return true;
     }
   };
 
   const handleSendOTP = async () => {
     if (phone.trim() === "") return showAlert("warning", "Vui lòng nhập số điện thoại");
     if (!/^\d{9,11}$/.test(phone)) return showAlert("error", "Số điện thoại không hợp lệ");
+    if (!email.trim() || !/^\S+@\S+\.\S+$/.test(email)) return showAlert("error", "Email không hợp lệ");
 
-    const exists = await checkPhoneExists();
-    if (exists) return showAlert("error", "Số điện thoại đã tồn tại, vui lòng dùng số khác.");
-
-    setupRecaptcha();
-    const appVerifier = window.recaptchaVerifier;
-    const fullPhone = "+84" + phone.slice(1);
+    const exists = await checkPhoneAndEmailExists();
+    if (exists) return;
 
     try {
-      const confirmation = await signInWithPhoneNumber(auth, fullPhone, appVerifier);
-      setConfirmationResult(confirmation);
-      showAlert("success", "Mã OTP đã được gửi!");
+      setOtpToken(null); // Reset mã cũ nếu có
+      const res = await fetch("http://localhost:5000/api/auth/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) return showAlert("error", data?.message || "Gửi mã xác thực thất bại");
+
+      showAlert("success", "Mã xác thực đã được gửi tới email!");
+      console.log("OTP token từ BE:", data?.data?.code); // Debug
+      setOtpToken(data?.data?.code);
       setStep(2);
     } catch (error) {
-      console.error("Lỗi gửi OTP:", error);
-      showAlert("error", "Gửi OTP thất bại. Vui lòng kiểm tra lại số điện thoại.");
+      console.error("Lỗi gửi mã xác thực:", error);
+      showAlert("error", "Gửi mã xác thực thất bại. Vui lòng thử lại.");
     }
   };
 
   const handleVerifyOTP = async () => {
-    if (!otp.trim()) return showAlert("warning", "Vui lòng nhập mã OTP");
+    if (!otp.trim()) return showAlert("warning", "Vui lòng nhập mã xác thực");
+    if (!otpToken) return showAlert("error", "Không có mã xác thực. Vui lòng gửi lại.");
 
-    try {
-      await confirmationResult.confirm(otp);
-      showAlert("success", "Xác thực OTP thành công!");
-      setStep(3);
-    } catch (err) {
-      console.error("Lỗi xác thực OTP:", err);
-      showAlert("error", "Mã OTP không đúng hoặc đã hết hạn.");
+    if (otp.trim() !== otpToken.toString()) {
+      return showAlert("error", "Mã xác thực không đúng");
     }
+
+    showAlert("success", "Xác thực thành công!");
+    setStep(3);
   };
 
   const handleRegister = async () => {
-    if (!password || !confirmPassword) return showAlert("warning", "Vui lòng nhập mật khẩu và xác nhận mật khẩu");
+    if (!password || !confirmPassword)
+      return showAlert("warning", "Vui lòng nhập mật khẩu và xác nhận mật khẩu");
 
     if (!/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,}$/.test(password))
       return showAlert("error", "Mật khẩu phải ít nhất 6 ký tự, có cả chữ và số");
@@ -112,7 +122,7 @@ const Register = () => {
       formData.append("username", phone);
       formData.append("phoneNumber", phone);
       formData.append("password", password);
-      formData.append("email", `${phone}@example.com`);
+      formData.append("email", email);
       formData.append("dateOfBirth", new Date().toISOString());
       formData.append("gender", "other");
       formData.append("avatarURL", avatarFile);
@@ -122,23 +132,11 @@ const Register = () => {
         body: formData,
       });
 
-      let data;
-      try {
-        data = await res.clone().json();
-      } catch (e) {
-        const text = await res.text();
-        console.error("Phản hồi không hợp lệ:", text);
-        showAlert("error", "Lỗi server. Vui lòng thử lại sau.");
-        return;
-      }
-
-      if (!res.ok) {
-        showAlert("error", data?.error || data?.message || "Đăng ký thất bại");
-        return;
-      }
+      const data = await res.json();
+      if (!res.ok) return showAlert("error", data?.message || "Đăng ký thất bại");
 
       showAlert("success", "Đăng ký thành công!");
-      setTimeout(() => navigate("/login"), 1000);
+      setTimeout(() => navigate("/login"), 1500);
     } catch (error) {
       console.error("Lỗi khi đăng ký:", error);
       showAlert("error", "Đã xảy ra lỗi khi đăng ký.");
@@ -149,7 +147,6 @@ const Register = () => {
     <div className="container-register">
       <div className="form-register">
         <span className="title">Zalo</span>
-        <div id="recaptcha-container"></div>
 
         {alertMsg.open && (
           <Alert variant="filled" severity={alertMsg.severity} style={{ marginBottom: 16 }}>
@@ -157,11 +154,11 @@ const Register = () => {
           </Alert>
         )}
 
-        {step === 1 ? (
+        {step === 1 && (
           <>
             <span className="subtitle">Tạo tài khoản mới</span>
             <p className="content">
-              Vui lòng nhập số điện thoại chưa từng đăng ký hoặc đăng nhập tài khoản Zalo.
+              Vui lòng nhập số điện thoại và email chưa từng đăng ký tài khoản Zalo.
             </p>
             <div className="form">
               <div className="form-content">
@@ -179,48 +176,57 @@ const Register = () => {
                     setPhone(e.target.value);
                     setPhoneExists(false);
                   }}
-                  onBlur={checkPhoneExists}
+                  onBlur={checkPhoneAndEmailExists}
                 />
-                {phoneExists && <p className="error-text">Số điện thoại đã tồn tại</p>}
               </div>
-              <button
-                className="button-send-otp"
-                onClick={handleSendOTP}
-                disabled={!phone}
-              >
+              <div className="form-content">
+                <input
+                  value={email}
+                  type="email"
+                  className="input-phone"
+                  placeholder="Email"
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+              {phoneExists && <p className="error-text">Số điện thoại đã tồn tại</p>}
+              <button className="button-send-otp" onClick={handleSendOTP} disabled={!phone || !email}>
                 Tiếp tục
               </button>
             </div>
           </>
-        ) : step === 2 ? (
+        )}
+
+        {step === 2 && (
           <>
-            <span className="subtitle">Xác nhận mã OTP</span>
-            <p className="content">
-              Nhập mã OTP đã gửi đến số điện thoại <b>{phone}</b>
-            </p>
+            <span className="subtitle">Xác nhận mã xác thực</span>
+            <p className="content">Nhập mã xác thực đã gửi đến email <b>{email}</b></p>
             <div className="form">
               <div className="form-content">
                 <input
                   value={otp}
                   type="text"
                   className="input-phone"
-                  placeholder="Nhập mã OTP"
+                  placeholder="Nhập mã xác thực"
                   onChange={(e) => setOtp(e.target.value)}
                 />
               </div>
-              <button
-                className="button-send-otp"
-                onClick={handleVerifyOTP}
-                disabled={!otp}
-              >
+              <button className="button-send-otp" onClick={handleVerifyOTP} disabled={!otp}>
                 Xác nhận
               </button>
-              <p className="resend-otp" onClick={handleSendOTP}>
-                Gửi lại mã OTP
+              <p
+                className="resend-otp"
+                onClick={() => {
+                  setOtpToken(null);
+                  handleSendOTP();
+                }}
+              >
+                Gửi lại mã
               </p>
             </div>
           </>
-        ) : (
+        )}
+
+        {step === 3 && (
           <>
             <span className="subtitle">Nhập mật khẩu</span>
             <div className="form">
@@ -246,9 +252,7 @@ const Register = () => {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                 />
                 <i
-                  className={
-                    showConfirmPassword ? "fa fa-eye-slash" : "fa fa-eye"
-                  }
+                  className={showConfirmPassword ? "fa fa-eye-slash" : "fa fa-eye"}
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 ></i>
               </div>

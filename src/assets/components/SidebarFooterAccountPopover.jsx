@@ -45,17 +45,17 @@ function SidebarFooterAccountPopover({ user }) {
             </Avatar>
           </ListItemIcon>
           <ListItemText
-            sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'flex-start',
-              width: '100%',
-            }}
-            primary={username}
-            secondary={email}
-            primaryTypographyProps={{ variant: 'body2' }}
-            secondaryTypographyProps={{ variant: 'caption' }}
-          />
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'flex-start',
+                width: '100%',
+              }}
+              primary={username}
+              secondary={email}
+              primaryTypographyProps={{ variant: 'body2' }}
+              secondaryTypographyProps={{ variant: 'caption' }}
+            />
         </MenuItem>
       </MenuList>
       <Divider />
