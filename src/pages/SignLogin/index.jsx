@@ -6,7 +6,7 @@ import "./SignLogin.css";
 
 const SignLogin = () => {
   const [isLoginByPhone, setIsLoginByPhone] = useState(true);
-  const [phone, setPhone] = useState("");
+  const [loginInput, setLoginInput] = useState("");
   const [password, setPassword] = useState("");
   const [alert, setAlert] = useState({ message: "", severity: "info" });
   const [openAlert, setOpenAlert] = useState(false);
@@ -25,42 +25,56 @@ const SignLogin = () => {
   };
 
   const handleClickLogin = async () => {
-    if (!phone || !password) {
+    if (!loginInput || !password) {
       showAlert("Vui lòng nhập đầy đủ thông tin", "warning");
       return;
     }
-
+  
+    const isEmail = loginInput.includes("@");
+  
+    let bodyData;
+    if (isEmail) {
+      bodyData = { email: loginInput, password };
+    } else {
+      let phone = loginInput.trim().replace(/\s/g, "");
+      // ✨ Convert 0xxxxxxx => 84xxxxxxxx
+      // if (phone.startsWith("0")) {
+      //   phone = "84" + phone.slice(1);
+      // }
+      bodyData = { phoneNumber: phone, password };
+    }
+  
     try {
       const response = await fetch("http://localhost:5000/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ phoneNumber: phone, password }),
+        body: JSON.stringify(bodyData),
       });
-
+  
       const data = await response.json();
       console.log("Login response:", data);
-
+  
       if (!response.ok) {
         showAlert(data?.error || data?.message || "Đăng nhập thất bại", "error");
         return;
       }
-
-      // Lưu token & user vào localStorage
+  
       localStorage.setItem("accessToken", data.data.accessToken);
       localStorage.setItem("user", JSON.stringify(data.data.user));
-
+  
       showAlert("Đăng nhập thành công!", "success");
-
+  
       setTimeout(() => {
-        navigate("/"); // hoặc điều hướng sang dashboard
+        navigate("/");
       }, 1000);
     } catch (err) {
       console.error("Lỗi đăng nhập:", err);
       showAlert("Lỗi kết nối server. Vui lòng thử lại", "error");
     }
   };
+  
 
   return (
     <div className="container-login">
@@ -93,25 +107,20 @@ const SignLogin = () => {
               onClick={() => setIsLoginByPhone(true)}
               style={{ color: isLoginByPhone ? "#056BFF" : "" }}
             >
-              VỚI SỐ ĐIỆN THOẠI
+              VỚI EMAIL / SỐ ĐIỆN THOẠI
             </span>
           </div>
 
           {isLoginByPhone ? (
             <div className="login-by-phone">
               <div className="form-content">
-                <i className="fa-solid fa-mobile-screen-button icon"></i>
-                <select name="phone" className="select-national">
-                  <option value={84}>+84</option>
-                  <option value={44}>+44</option>
-                  <option value={852}>+852</option>
-                </select>
+                <i className="fa-solid fa-user icon"></i>
                 <input
-                  value={phone}
+                  value={loginInput}
                   type="text"
                   className="input-phone"
-                  placeholder="Số điện thoại"
-                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="Email hoặc Số điện thoại"
+                  onChange={(e) => setLoginInput(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       document.querySelector(".input-password").focus();
