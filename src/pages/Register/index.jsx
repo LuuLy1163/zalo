@@ -38,59 +38,79 @@ const Register = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phoneNumber: phone, email }),
       });
-
+  
       const data = await res.json();
-
-      if (!res.ok) throw new Error(data.message || "Lỗi kiểm tra số điện thoại/email");
-
-      if (data.exists) {
+  
+      if (res.status === 409) {
+        // 409 thường trả về thông tin cụ thể về xung đột
         if (data.phoneExists) {
           setPhoneExists(true);
           showAlert("error", "Số điện thoại đã tồn tại.");
-        } else if (data.emailExists) {
+        }
+  
+        if (data.emailExists) {
           showAlert("error", "Email đã tồn tại.");
         }
+  
+        return true; // Có xung đột
+      }
+  
+      if (!res.ok) {
+        showAlert("error", data?.message || "Lỗi kiểm tra thông tin.");
         return true;
       }
-
+  
       setPhoneExists(false);
       return false;
     } catch (err) {
       console.error("Lỗi khi kiểm tra tồn tại:", err);
-      setPhoneExists(true);
       showAlert("error", "Không thể kiểm tra thông tin. Vui lòng thử lại.");
       return true;
     }
   };
+  
+  
 
   const handleSendOTP = async () => {
+    // Kiểm tra định dạng input
     if (phone.trim() === "") return showAlert("warning", "Vui lòng nhập số điện thoại");
     if (!/^\d{9,11}$/.test(phone)) return showAlert("error", "Số điện thoại không hợp lệ");
     if (!email.trim() || !/^\S+@\S+\.\S+$/.test(email)) return showAlert("error", "Email không hợp lệ");
-
+  
+    // Kiểm tra tồn tại email/số điện thoại
+    console.log("⏳ Đang kiểm tra số điện thoại và email...");
     const exists = await checkPhoneAndEmailExists();
-    if (exists) return;
-
+  
+    if (exists) {
+      showAlert("error", "Email hoặc số điện thoại đac được đăng ký. Vui lòng thử lại.");
+      return; // Nếu đã tồn tại thì dừng lại ở đây
+    }
+  
     try {
-      setOtpToken(null); // Reset mã cũ nếu có
+      setOtpToken(null); // Reset OTP cũ
+  
       const res = await fetch("http://localhost:5000/api/auth/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
       });
-
+  
       const data = await res.json();
-      if (!res.ok) return showAlert("error", data?.message || "Gửi mã xác thực thất bại");
-
+      if (!res.ok) {
+        console.log("❌ Lỗi gửi OTP:", data);
+        return showAlert("error", data?.message || "Gửi mã xác thực thất bại");
+      }
+  
       showAlert("success", "Mã xác thực đã được gửi tới email!");
-      console.log("OTP token từ BE:", data?.data?.code); // Debug
+      console.log("✅ OTP token từ BE:", data?.data?.code);
       setOtpToken(data?.data?.code);
       setStep(2);
     } catch (error) {
-      console.error("Lỗi gửi mã xác thực:", error);
+      console.error("❌ Lỗi gửi mã xác thực:", error);
       showAlert("error", "Gửi mã xác thực thất bại. Vui lòng thử lại.");
     }
   };
+  
 
   const handleVerifyOTP = async () => {
     if (!otp.trim()) return showAlert("warning", "Vui lòng nhập mã xác thực");
@@ -136,7 +156,7 @@ const Register = () => {
       if (!res.ok) return showAlert("error", data?.message || "Đăng ký thất bại");
 
       showAlert("success", "Đăng ký thành công!");
-      setTimeout(() => navigate("/login"), 1500);
+      setTimeout(() => navigate("/"), 1500);
     } catch (error) {
       console.error("Lỗi khi đăng ký:", error);
       showAlert("error", "Đã xảy ra lỗi khi đăng ký.");

@@ -67,7 +67,7 @@ const SignLogin = () => {
       showAlert("Đăng nhập thành công!", "success");
   
       setTimeout(() => {
-        navigate("/");
+        navigate("/home");
       }, 1000);
     } catch (err) {
       console.error("Lỗi đăng nhập:", err);
@@ -154,7 +154,7 @@ const SignLogin = () => {
               </button>
               <span
                 onClick={() =>
-                  navigate("/forgot-password", {
+                  navigate("/forgotPassword", {
                     state: { urlBackend: "your_backend_url" },
                   })
                 }

@@ -1,5 +1,13 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import {
+  Box,
+  Button,
+  TextField,
+  Typography,
+  Snackbar,
+  Alert,
+} from "@mui/material";
 
 const ForgotPassword = () => {
   const [step, setStep] = useState(1);
@@ -9,13 +17,22 @@ const ForgotPassword = () => {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
+  const [alert, setAlert] = useState({
+    open: false,
+    message: "",
+    severity: "info",
+  });
+
+  const showAlert = (message, severity = "info") => {
+    setAlert({ open: true, message, severity });
+  };
+
   const navigate = useNavigate();
 
-  // Bước 1: Gửi mã xác minh
   const handleSendCode = async () => {
     const trimmedEmail = email.trim();
     if (!trimmedEmail || !/^\S+@\S+\.\S+$/.test(trimmedEmail)) {
-      alert("Vui lòng nhập email hợp lệ");
+      showAlert("Vui lòng nhập email hợp lệ", "warning");
       return;
     }
 
@@ -29,7 +46,7 @@ const ForgotPassword = () => {
       if (!resCheck.ok) {
         const text = await resCheck.text();
         console.error("Email không tồn tại:", text);
-        alert("Email không tồn tại!");
+        showAlert("Email chưa được đăng kí với tài khoản nào!", "error");
         return;
       }
 
@@ -41,51 +58,49 @@ const ForgotPassword = () => {
 
       const data = await res.json();
 
-      if (!res.ok || !data?.code && !data?.data?.code) {
-        alert("Không thể gửi mã xác minh!");
+      if (!res.ok || (!data?.code && !data?.data?.code)) {
+        showAlert("Không thể gửi mã xác minh!", "error");
         return;
       }
 
       setVerifyCode(data.code || data.data.code);
-      alert("Mã xác minh đã được gửi đến email của bạn!");
+      showAlert("Mã xác minh đã được gửi đến email của bạn!", "success");
       setStep(2);
     } catch (err) {
       console.error("Lỗi gửi mã xác minh:", err);
-      alert("Đã xảy ra lỗi. Vui lòng thử lại sau.");
+      showAlert("Đã xảy ra lỗi. Vui lòng thử lại sau.", "error");
     }
   };
 
-  // Bước 2: Xác minh mã
   const handleVerifyCode = () => {
     if (!verifyCode) {
-      alert("Chưa có mã xác minh. Quay lại bước 1 để lấy mã.");
+      showAlert("Chưa có mã xác minh. Quay lại bước 1 để lấy mã.", "warning");
       setStep(1);
       return;
     }
 
     if (inputCode.trim() !== verifyCode.toString()) {
-      alert("Mã xác minh không đúng!");
+      showAlert("Mã xác minh không đúng!", "error");
       return;
     }
 
-    alert("Xác minh thành công!");
+    showAlert("Xác minh thành công!", "success");
     setStep(3);
   };
 
-  // Bước 3: Đặt lại mật khẩu
   const handleResetPassword = async () => {
     if (!newPassword || !confirmPassword) {
-      alert("Vui lòng nhập đầy đủ mật khẩu");
+      showAlert("Vui lòng nhập đầy đủ mật khẩu", "warning");
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      alert("Mật khẩu không khớp");
+      showAlert("Mật khẩu không khớp", "error");
       return;
     }
 
     if (!/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,}$/.test(newPassword)) {
-      alert("Mật khẩu phải ít nhất 6 ký tự, gồm cả chữ và số");
+      showAlert("Mật khẩu phải ít nhất 6 ký tự, gồm cả chữ và số", "warning");
       return;
     }
 
@@ -99,15 +114,17 @@ const ForgotPassword = () => {
       const data = await res.json();
 
       if (!res.ok) {
-        alert(data.message || "Lỗi khi đổi mật khẩu");
+        showAlert(data.message || "Lỗi khi đổi mật khẩu", "error");
         return;
       }
 
-      alert("Đổi mật khẩu thành công!");
-      navigate("/login");
+      showAlert("Đổi mật khẩu thành công!", "success");
+      setTimeout(() => {
+        navigate("/");
+      }, 1000);
     } catch (err) {
       console.error("Lỗi reset mật khẩu:", err);
-      alert("Không thể đổi mật khẩu. Vui lòng thử lại sau.");
+      showAlert("Không thể đổi mật khẩu. Vui lòng thử lại sau.", "error");
     }
   };
 
@@ -118,67 +135,91 @@ const ForgotPassword = () => {
 
         {step === 1 && (
           <>
-            <span className="subtitle">Quên mật khẩu</span>
-            <p className="content">Nhập email để nhận mã xác minh</p>
-            <div className="form">
-              <input
-                type="text"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Email"
-                className="input-phone"
-              />
-              <button className="button-send-otp" onClick={handleSendCode}>
-                Gửi mã xác minh
-              </button>
-            </div>
+            <Typography variant="h6">Quên mật khẩu</Typography>
+            <Typography variant="body2" mb={1} color="black">
+              Nhập email để nhận mã xác minh
+            </Typography>
+            <TextField
+              fullWidth
+              label="Email"
+              variant="outlined"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              margin="normal"
+            />
+            <Button
+              fullWidth
+              variant="contained"
+              onClick={handleSendCode}
+              sx={{ marginTop: "2vh", height: "5vh" }}
+            >
+              Gửi mã xác minh
+            </Button>
           </>
         )}
 
         {step === 2 && (
           <>
-            <span className="subtitle">Xác minh danh tính</span>
-            <p className="content">Nhập mã xác minh đã được gửi qua email</p>
-            <div className="form">
-              <input
-                type="text"
-                value={inputCode}
-                onChange={(e) => setInputCode(e.target.value)}
-                placeholder="Mã xác minh"
-                className="input-phone"
-              />
-              <button className="button-send-otp" onClick={handleVerifyCode}>
-                Xác nhận
-              </button>
-            </div>
+            <Typography variant="body2" mb={2} color="black">
+              Nhập mã xác minh đã được gửi qua email
+            </Typography>
+            <TextField
+              fullWidth
+              label="Mã xác minh"
+              variant="outlined"
+              value={inputCode}
+              onChange={(e) => setInputCode(e.target.value)}
+              margin="normal"
+            />
+            <Button fullWidth variant="contained" onClick={handleVerifyCode}>
+              Xác nhận
+            </Button>
           </>
         )}
 
         {step === 3 && (
           <>
-            <span className="subtitle">Đặt lại mật khẩu</span>
-            <div className="form">
-              <input
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Mật khẩu mới"
-                className="input-phone"
-              />
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Xác nhận mật khẩu"
-                className="input-phone"
-              />
-              <button className="button-send-otp" onClick={handleResetPassword}>
-                Đổi mật khẩu
-              </button>
-            </div>
+            <Typography variant="h6">Đặt lại mật khẩu</Typography>
+            <TextField
+              fullWidth
+              label="Mật khẩu mới"
+              type="password"
+              variant="outlined"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              margin="normal"
+            />
+            <TextField
+              fullWidth
+              label="Xác nhận mật khẩu"
+              type="password"
+              variant="outlined"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              margin="normal"
+            />
+            <Button fullWidth variant="contained" onClick={handleResetPassword}>
+              Đổi mật khẩu
+            </Button>
           </>
         )}
       </div>
+
+      <Snackbar
+        open={alert.open}
+        autoHideDuration={4000}
+        onClose={() => setAlert({ ...alert, open: false })}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+      >
+        <Alert
+          onClose={() => setAlert({ ...alert, open: false })}
+          severity={alert.severity}
+          variant="filled"
+          sx={{ width: "100%" }}
+        >
+          {alert.message}
+        </Alert>
+      </Snackbar>
     </div>
   );
 };
