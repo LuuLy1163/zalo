@@ -12,7 +12,7 @@ export const router = createBrowserRouter([
     element: <ForgotPassword />,
   },
   {
-    path: '/',
+    path: '/home',
     element: <Home />,
   },
   {
@@ -20,7 +20,7 @@ export const router = createBrowserRouter([
     element: <Register />,
   },
   {
-    path: '/login',
+    path: '/',
     element: <SignLogin />,
   },
   {
