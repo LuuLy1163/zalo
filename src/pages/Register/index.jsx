@@ -127,34 +127,32 @@ const Register = () => {
   const handleRegister = async () => {
     if (!password || !confirmPassword)
       return showAlert("warning", "Vui lòng nhập mật khẩu và xác nhận mật khẩu");
-
+  
     if (!/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,}$/.test(password))
       return showAlert("error", "Mật khẩu phải ít nhất 6 ký tự, có cả chữ và số");
-
+  
     if (password !== confirmPassword) return showAlert("error", "Mật khẩu không khớp");
-
+  
     try {
-      const avatarResponse = await fetch(avt);
-      const blob = await avatarResponse.blob();
-      const avatarFile = new File([blob], "default-avatar.png", { type: blob.type });
-
-      const formData = new FormData();
-      formData.append("username", phone);
-      formData.append("phoneNumber", phone);
-      formData.append("password", password);
-      formData.append("email", email);
-      formData.append("dateOfBirth", new Date().toISOString());
-      formData.append("gender", "other");
-      formData.append("avatarURL", avatarFile);
-
+      const payload = {
+        username: phone,
+        phoneNumber: phone,
+        password,
+        email,
+        dateOfBirth: new Date().toISOString(),
+        gender: "other",
+        avatarURL: "https://i.pinimg.com/736x/dc/e3/cb/dce3cb7b2daeb86ca5bd921ae06f3b2f.jpg",
+      };
+  
       const res = await fetch("http://localhost:5000/api/auth/register", {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       });
-
+  
       const data = await res.json();
       if (!res.ok) return showAlert("error", data?.message || "Đăng ký thất bại");
-
+  
       showAlert("success", "Đăng ký thành công!");
       setTimeout(() => navigate("/"), 1500);
     } catch (error) {
@@ -162,6 +160,7 @@ const Register = () => {
       showAlert("error", "Đã xảy ra lỗi khi đăng ký.");
     }
   };
+  
 
   return (
     <div className="container-register">
