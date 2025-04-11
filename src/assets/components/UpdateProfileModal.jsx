@@ -115,7 +115,15 @@ export default function UpdateProfileModal({ open, onClose, user }) {
           variant="contained"
           onClick={handleSubmit}
           disabled={loading}
-          sx={{ mt: 2, borderRadius: 2 }}
+          sx={{
+            mt: 2,
+            backgroundColor: '#0084ff',
+            borderRadius: 2,
+            textTransform: 'none',
+            '&:hover': {
+              backgroundColor: '#006fd6',
+            },
+          }}
         >
           {loading ? 'Đang cập nhật...' : 'Lưu thay đổi'}
         </Button>
