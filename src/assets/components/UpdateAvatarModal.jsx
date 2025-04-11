@@ -56,8 +56,15 @@ export default function UpdateAvatarModal({ open, onClose, user }) {
         },
       });
 
+      const updatedUser = {
+        ...user,
+        avatarURL: formData.avatarURL
+      };
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+  
       alert(res.data.message || 'Cập nhật thành công');
       onClose();
+      window.location.reload();
     } catch (err) {
       console.error(err);
       alert(err.response?.data?.error || 'Cập nhật thất bại');

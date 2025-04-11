@@ -54,13 +54,23 @@ export default function UpdateProfileModal({ open, onClose, user }) {
     try {
       const res = await axios.put('http://localhost:5000/api/auth/updateProfile', form);
       alert(res.data.message);
+  
+      const updatedUser = {
+        ...user,
+        username: form.username,
+        gender: form.gender,
+        dateOfBirth: form.dateOfBirth,
+      };
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+  
       onClose();
+      window.location.reload();
     } catch (err) {
       alert(err.response?.data?.error || 'Cập nhật thất bại');
     } finally {
       setLoading(false);
     }
-  };
+  };  
 
   return (
     <Modal
