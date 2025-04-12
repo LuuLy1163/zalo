@@ -19,6 +19,7 @@ import ChatPage from '../../assets/components/Chat';
 import ContactPage from '../../assets/components/Contact';
 import { AppProvider } from '@toolpad/core/AppProvider';
 import { DashboardLayout } from '@toolpad/core/DashboardLayout';
+import ProfileModal from '../../assets/components/ProfileModal';
 import {
   Account,
   AccountPreview,
@@ -109,8 +110,16 @@ const accounts = user ? [{
 }] : [];
 
 function SidebarFooterAccountPopover({ authentication, router }) {
+  const handleClick = (e) => {
+    e.stopPropagation();
+    if (onCloseMenu) onCloseMenu(); 
+    setTimeout(() => setOpenModal(true), 100); 
+  };
   const navigate = useNavigate();
+  const [openModal, setOpenModal] = React.useState(false);
 
+  const handleOpen = () => setOpenModal(true);
+  const handleClose = () => setOpenModal(false);
   const handleSignOut = () => {
     authentication.signOut();
     setTimeout(() => {
@@ -120,13 +129,20 @@ function SidebarFooterAccountPopover({ authentication, router }) {
   };
 
   return (
+    <>
     <Stack direction="column">
-      <Typography variant="body2" mx={2} mt={1}>Accounts</Typography>
+      <Typography variant="body2" mx={2} mt={1}>Tài khoản</Typography>
       <MenuList>
         {accounts.map((account) => (
           <MenuItem
             key={account.id}
             component="button"
+            onClick={(e) => {
+              e.stopPropagation(); 
+              setTimeout(() => {
+                setOpenModal(true);
+              }, 100);
+            }}
             sx={{
               justifyContent: 'flex-start',
               width: '100%',
@@ -162,6 +178,10 @@ function SidebarFooterAccountPopover({ authentication, router }) {
         <SignOutButton onClick={handleSignOut} />
       </AccountPopoverFooter>
     </Stack>
+    
+    <ProfileModal open={openModal} onClose={handleClose} user={user} />
+    </>
+    
   );
 }
 
