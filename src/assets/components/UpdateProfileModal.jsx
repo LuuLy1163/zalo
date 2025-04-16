@@ -50,6 +50,11 @@ export default function UpdateProfileModal({ open, onClose, user }) {
   };
 
   const handleSubmit = async () => {
+    if (!form.username.trim()) {
+      alert('Tên người dùng không được để trống');
+      return;
+    }
+  
     setLoading(true);
     try {
       const res = await axios.put('http://localhost:5000/api/auth/updateProfile', form);

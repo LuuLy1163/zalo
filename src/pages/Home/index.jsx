@@ -67,7 +67,8 @@ function DemoPageContent({ pathname }) {
   }
 
   return (
-    <Box sx={{ py: 4, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+    <Box sx={{ display: 'flex',
+      flexDirection: 'column',flexGrow: 1, }}>
       {content}
     </Box>
   );
@@ -97,97 +98,86 @@ AccountSidebarPreview.propTypes = {
   open: PropTypes.bool,
 };
 
-const storedUser = localStorage.getItem('user');
-console.log(storedUser);
-const user = storedUser ? JSON.parse(storedUser) : null;
-
-const accounts = user ? [{
-  id: user._id?.$oid || 1,
-  name: user.username || 'Người dùng',
-  email: user.email || '',
-  image: user.avatarURL || '',
-  color: '#1976d2',
-}] : [];
-
-function SidebarFooterAccountPopover({ authentication, router }) {
-  const handleClick = (e) => {
-    e.stopPropagation();
-    if (onCloseMenu) onCloseMenu(); 
-    setTimeout(() => setOpenModal(true), 100); 
-  };
-  const navigate = useNavigate();
+function SidebarFooterAccountPopover({ authentication, router, user }) {
   const [openModal, setOpenModal] = React.useState(false);
+  const navigate = useNavigate();
 
   const handleOpen = () => setOpenModal(true);
   const handleClose = () => setOpenModal(false);
+
   const handleSignOut = () => {
+    localStorage.removeItem('user');
     authentication.signOut();
-    setTimeout(() => {
-      navigate('/');
-    }, 100);
+    navigate('/');
     router.navigate('/');
   };
 
+  const accounts = user ? [{
+    id: user._id?.$oid || 1,
+    name: user.username || 'Người dùng',
+    email: user.email || '',
+    image: user.avatarURL || '',
+    color: '#1976d2',
+  }] : [];
+
   return (
     <>
-    <Stack direction="column">
-      <Typography variant="body2" mx={2} mt={1}>Tài khoản</Typography>
-      <MenuList>
-        {accounts.map((account) => (
-          <MenuItem
-            key={account.id}
-            component="button"
-            onClick={(e) => {
-              e.stopPropagation(); 
-              setTimeout(() => {
-                setOpenModal(true);
-              }, 100);
-            }}
-            sx={{
-              justifyContent: 'flex-start',
-              width: '100%',
-              columnGap: 2,
-            }}
-          >
-            <ListItemIcon>
-              <Avatar
-                sx={{
-                  width: 32,
-                  height: 32,
-                  fontSize: '0.95rem',
-                  bgcolor: account.color,
-                }}
-                src={account.image}
-                alt={account.name}
-              >
-                {account.name[0]}
-              </Avatar>
-            </ListItemIcon>
-            <ListItemText
-              sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: '100%' }}
-              primary={account.name}
-              secondary={account.email}
-              primaryTypographyProps={{ variant: 'body2' }}
-              secondaryTypographyProps={{ variant: 'caption' }}
-            />
-          </MenuItem>
-        ))}
-      </MenuList>
-      <Divider />
-      <AccountPopoverFooter>
-        <SignOutButton onClick={handleSignOut} />
-      </AccountPopoverFooter>
-    </Stack>
-    
-    <ProfileModal open={openModal} onClose={handleClose} user={user} />
+      <Stack direction="column">
+        <Typography variant="body2" mx={2} mt={1}>Tài khoản</Typography>
+        <MenuList>
+          {accounts.map((account) => (
+            <MenuItem
+              key={account.id}
+              component="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setTimeout(() => setOpenModal(true), 100);
+              }}
+              sx={{
+                justifyContent: 'flex-start',
+                width: '100%',
+                columnGap: 2,
+              }}
+            >
+              <ListItemIcon>
+                <Avatar
+                  sx={{
+                    width: 32,
+                    height: 32,
+                    fontSize: '0.95rem',
+                    bgcolor: account.color,
+                  }}
+                  src={account.image}
+                  alt={account.name}
+                >
+                  {account.name[0]}
+                </Avatar>
+              </ListItemIcon>
+              <ListItemText
+                sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: '100%' }}
+                primary={account.name}
+                secondary={account.email}
+                primaryTypographyProps={{ variant: 'body2' }}
+                secondaryTypographyProps={{ variant: 'caption' }}
+              />
+            </MenuItem>
+          ))}
+        </MenuList>
+        <Divider />
+        <AccountPopoverFooter>
+          <SignOutButton onClick={handleSignOut} />
+        </AccountPopoverFooter>
+      </Stack>
+
+      <ProfileModal open={openModal} onClose={handleClose} user={user} />
     </>
-    
   );
 }
 
 SidebarFooterAccountPopover.propTypes = {
   authentication: PropTypes.object.isRequired,
   router: PropTypes.object.isRequired,
+  user: PropTypes.object,
 };
 
 function createPreviewComponent(mini) {
@@ -196,14 +186,14 @@ function createPreviewComponent(mini) {
   };
 }
 
-function SidebarFooterAccount({ mini, authentication, router }) {
+function SidebarFooterAccount({ mini, authentication, router, user }) {
   const PreviewComponent = React.useMemo(() => createPreviewComponent(mini), [mini]);
 
   return (
     <Account
       slots={{
         preview: PreviewComponent,
-        popoverContent: () => <SidebarFooterAccountPopover authentication={authentication} router={router} />,
+        popoverContent: () => <SidebarFooterAccountPopover authentication={authentication} router={router} user={user} />,
       }}
       slotProps={{
         popover: {
@@ -247,22 +237,26 @@ SidebarFooterAccount.propTypes = {
   mini: PropTypes.bool.isRequired,
   authentication: PropTypes.object.isRequired,
   router: PropTypes.object.isRequired,
+  user: PropTypes.object,
 };
 
-const demoSession = user
-  ? {
-      user: {
-        name: user.username || 'Người dùng',
-        email: user.email || '',
-        image: user.avatarURL || '',
-      },
-    }
-  : null;
-
 function Home(props) {
-  const { window } = props;
+  const { window: windowProp } = props;
 
   const [pathname, setPathname] = React.useState('/dashboard');
+  const [user, setUser] = React.useState(() => {
+    const storedUser = localStorage.getItem('user');
+    return storedUser ? JSON.parse(storedUser) : null;
+  });
+
+  React.useEffect(() => {
+    const handleStorageChange = () => {
+      const storedUser = localStorage.getItem('user');
+      setUser(storedUser ? JSON.parse(storedUser) : null);
+    };
+    window.addEventListener('storage', handleStorageChange); 
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
 
   const router = React.useMemo(() => {
     return {
@@ -272,16 +266,26 @@ function Home(props) {
     };
   }, [pathname]);
 
-  const demoWindow = window !== undefined ? window() : undefined;
+  const demoWindow = windowProp !== undefined ? windowProp() : undefined;
 
-  const [session, setSession] = React.useState(() => demoSession);
+  const session = user
+    ? {
+        user: {
+          name: user.username || 'Người dùng',
+          email: user.email || '',
+          image: user.avatarURL || '',
+        },
+      }
+    : null;
+
   const authentication = React.useMemo(() => {
     return {
       signIn: () => {
-        setSession(demoSession);
+        const storedUser = localStorage.getItem('user');
+        setUser(storedUser ? JSON.parse(storedUser) : null);
       },
       signOut: () => {
-        setSession(null);
+        setUser(null);
         router.navigate('/');
       },
     };
@@ -289,9 +293,9 @@ function Home(props) {
 
   const SidebarFooter = React.useMemo(
     () => (props) => (
-      <SidebarFooterAccount {...props} authentication={authentication} router={router} />
+      <SidebarFooterAccount {...props} authentication={authentication} router={router} user={user} />
     ),
-    [authentication, router]
+    [authentication, router, user]
   );
 
   return (

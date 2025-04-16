@@ -54,7 +54,7 @@ const formatPhoneNumber = (phone) => {
   return `${phone.slice(0, 3)} ${phone.slice(3, 6)} ${phone.slice(6)}`;
 };
 
-export default function ProfileModal({ user, open, onClose }) {
+export default function ProfileModal({ user, open, onClose, onUpdateUser }) {
   const [isUpdating, setIsUpdating] = React.useState(false);
   const [isAvatarModalOpen, setIsAvatarModalOpen] = React.useState(false);
   const [isCoverModalOpen, setIsCoverModalOpen] = React.useState(false);
@@ -201,7 +201,9 @@ export default function ProfileModal({ user, open, onClose }) {
         open={isAvatarModalOpen}
         onClose={() => setIsAvatarModalOpen(false)}
         user={user}
+        onUpdateUser={onUpdateUser}
       />
+
 
       <UpdateCoverModal
         open={isCoverModalOpen}
