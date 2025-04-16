@@ -58,7 +58,7 @@ export default function UpdateAvatarModal({ open, onClose, user }) {
 
       const updatedUser = {
         ...user,
-        avatarURL: formData.avatarURL|| preview,
+        avatarURL: res.data.avatarURL || preview, 
       };
       localStorage.setItem('user', JSON.stringify(updatedUser));
   

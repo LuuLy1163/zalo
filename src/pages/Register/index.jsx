@@ -52,7 +52,7 @@ const Register = () => {
           showAlert("error", "Email đã tồn tại.");
         }
   
-        return true; // Có xung đột
+        return true; 
       }
   
       if (!res.ok) {
@@ -72,22 +72,21 @@ const Register = () => {
   
 
   const handleSendOTP = async () => {
-    // Kiểm tra định dạng input
     if (phone.trim() === "") return showAlert("warning", "Vui lòng nhập số điện thoại");
     if (!/^\d{9,11}$/.test(phone)) return showAlert("error", "Số điện thoại không hợp lệ");
     if (!email.trim() || !/^\S+@\S+\.\S+$/.test(email)) return showAlert("error", "Email không hợp lệ");
   
-    // Kiểm tra tồn tại email/số điện thoại
+    
     console.log("⏳ Đang kiểm tra số điện thoại và email...");
     const exists = await checkPhoneAndEmailExists();
   
     if (exists) {
-      showAlert("error", "Email hoặc số điện thoại đac được đăng ký. Vui lòng thử lại.");
-      return; // Nếu đã tồn tại thì dừng lại ở đây
+      showAlert("error", "Email hoặc số điện thoại đã được đăng ký. Vui lòng thử lại.");
+      return; 
     }
   
     try {
-      setOtpToken(null); // Reset OTP cũ
+      setOtpToken(null);
   
       const res = await fetch("http://localhost:5000/api/auth/verify", {
         method: "POST",
