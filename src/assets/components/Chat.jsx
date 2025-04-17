@@ -75,7 +75,7 @@ const Chat = () => {
     const [isAddFriendModalOpen, setIsAddFriendModalOpen] = useState(false);
     const [selectedUserToAdd, setSelectedUserToAdd] = useState(null);
     const [friendRequestsSent, setFriendRequestsSent] = useState([]);
-    const [chatList, setChatList] = useState(getInitialChatList()); // Sử dụng getInitialChatList
+    const [chatList, setChatList] = useState(getInitialChatList()); 
 
     const currentUserPhone = '0877896883';
 
