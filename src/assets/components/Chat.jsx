@@ -1,4 +1,3 @@
-// Chat.jsx
 import React, { useState, useEffect } from 'react';
 import { styled } from '@mui/material/styles';
 import {
@@ -8,20 +7,11 @@ import {
 import SearchIcon from '@mui/icons-material/Search';
 import CloseIcon from '@mui/icons-material/Close';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
-import MoreVertIcon from '@mui/icons-material/MoreVert';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import CallIcon from '@mui/icons-material/Call';
-import VideocamIcon from '@mui/icons-material/Videocam';
-import AttachFileIcon from '@mui/icons-material/AttachFile';
-import EmojiEmotionsIcon from '@mui/icons-material/EmojiEmotions';
-import ImageIcon from '@mui/icons-material/Image';
-import SendIcon from '@mui/icons-material/Send';
+import AddFriend from './AddFriend';
 import { Scrollbar } from 'react-scrollbars-custom';
 import axios from 'axios';
-import AddFriend from './Addfriend';
-import ChatDetail from './ChatDetail'; // Import component ChatDetail mới
+import ChatDetail from './ChatDetail'; 
 
-// Lấy dữ liệu chatList từ localStorage khi component mount
 const getInitialChatList = () => {
     const storedChatList = localStorage.getItem('chatList');
     return storedChatList ? JSON.parse(storedChatList) : [
@@ -85,7 +75,7 @@ const Chat = () => {
     const [isAddFriendModalOpen, setIsAddFriendModalOpen] = useState(false);
     const [selectedUserToAdd, setSelectedUserToAdd] = useState(null);
     const [friendRequestsSent, setFriendRequestsSent] = useState([]);
-    const [chatList, setChatList] = useState(getInitialChatList()); // Sử dụng getInitialChatList
+    const [chatList, setChatList] = useState(getInitialChatList()); 
 
     const currentUserPhone = '0877896883';
 
@@ -141,30 +131,6 @@ const Chat = () => {
     };
 
     const handleCloseSearch = () => {
-        setIsSearching(false);
-        setSearchKeyword('');
-        setSearchResults([]);
-    };
-
-    const handleSelectSearchResult = (user) => {
-        setSelectedUserToAdd(user);
-        // Kiểm tra xem người dùng đã có trong chatList chưa
-        const existingChat = chatList.find(chat => chat.id === user._id);
-        if (existingChat) {
-            setSelectedChat(existingChat);
-        } else {
-            // Nếu chưa có, tạo một đối tượng chat mới và chọn nó
-            const newChat = {
-                id: user._id,
-                name: user.username,
-                avatar: user.avatarURL || '/static/images/avatar/default.jpg',
-                lastMessage: checkIfFriendRequestSent(user._id) ? 'Đã gửi lời mời kết bạn' : '',
-                time: 'Vừa xong',
-                type: 'person',
-            };
-            setChatList(prev => [newChat, ...prev]);
-            setSelectedChat(newChat);
-        }
         setIsSearching(false);
         setSearchKeyword('');
         setSearchResults([]);
@@ -277,27 +243,21 @@ const Chat = () => {
                     {isSearching && searchResults.length > 0 && (
                         <List>
                             {searchResults.map((user) => (
-                                <ListItem
-                                    key={user._id}
-                                    alignItems="center"
-                                    onClick={() => handleSelectSearchResult(user)} // Bấm vào kết quả tìm kiếm
-                                    sx={{ cursor: 'pointer' }}
-                                    secondaryAction={
-                                        checkIfFriendRequestSent(user._id) || chatList.some(chat => chat.id === user._id) || user.phoneNumber === currentUserPhone ? null : (
-                                            <Button
-                                                variant="outlined"
-                                                color="primary"
-                                                size="small"
-                                                onClick={(e) => {
-                                                    e.stopPropagation(); // Ngăn chặn sự kiện onClick của ListItem
-                                                    handleOpenAddFriendModal(user);
-                                                }}
-                                            >
-                                                {checkIfFriendRequestSent(user._id) ? 'Đã gửi' : 'Thêm bạn bè'}
-                                            </Button>
-                                        )
-                                    }
-                                >
+                                <ListItem key={user._id} alignItems="center" secondaryAction={
+                                    <Button
+                                        variant="outlined"
+                                        color="primary"
+                                        size="small"
+                                        onClick={() => handleOpenAddFriendModal(user)}
+                                        disabled={checkIfFriendRequestSent(user._id) || user.phoneNumber === currentUserPhone}
+                                    >
+                                        {user.phoneNumber === currentUserPhone
+                                            ? 'Bạn'
+                                            : checkIfFriendRequestSent(user._id)
+                                                ? 'Đã gửi'
+                                                : 'Thêm bạn bè'}
+                                    </Button>
+                                }>
                                     <ListItemIcon>
                                         <Avatar src={user.avatarURL || '/static/images/avatar/default.jpg'} />
                                     </ListItemIcon>
