@@ -6,9 +6,9 @@ import {
   Button,
   Avatar,
   Stack,
-  IconButton
+  IconButton,
 } from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close'; 
+import CloseIcon from '@mui/icons-material/Close';
 import axios from 'axios';
 
 const modalStyle = {
@@ -21,7 +21,6 @@ const modalStyle = {
   borderRadius: 2,
   boxShadow: 24,
   p: 3,
-  position: 'relative' 
 };
 
 export default function UpdateAvatarModal({ open, onClose, user }) {
@@ -34,34 +33,32 @@ export default function UpdateAvatarModal({ open, onClose, user }) {
     if (selected) {
       setFile(selected);
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreview(reader.result);
-      };
+      reader.onloadend = () => setPreview(reader.result);
       reader.readAsDataURL(selected);
     }
   };
 
   const handleSave = async () => {
     if (!file) return;
-
     const formData = new FormData();
     formData.append('avatarURL', file);
     formData.append('email', user.email);
 
     try {
       setLoading(true);
-      const res = await axios.put('http://localhost:5000/api/auth/updateAvatar', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      const res = await axios.put(
+        'http://localhost:5000/api/auth/updateAvatar',
+        formData,
+        { headers: { 'Content-Type': 'multipart/form-data' } }
+      );
 
+      // Cập nhật localStorage và reload để lấy avatar mới
       const updatedUser = {
         ...user,
-        avatarURL: res.data.avatarURL || preview, 
+        avatarURL: res.data.avatarURL || preview,
       };
       localStorage.setItem('user', JSON.stringify(updatedUser));
-  
+
       alert(res.data.message || 'Cập nhật thành công');
       onClose();
       window.location.reload();
@@ -78,10 +75,11 @@ export default function UpdateAvatarModal({ open, onClose, user }) {
       open={open}
       onClose={(event, reason) => {
         if (reason === 'backdropClick') return;
-        onClose?.();
+        onClose();
       }}
     >
       <Box sx={modalStyle} onClick={(e) => e.stopPropagation()}>
+        {/* Nút đóng */}
         <IconButton
           onClick={onClose}
           sx={{ position: 'absolute', top: 8, right: 8 }}
@@ -89,7 +87,9 @@ export default function UpdateAvatarModal({ open, onClose, user }) {
           <CloseIcon />
         </IconButton>
 
-        <Typography variant="h6" mb={2}>Cập nhật ảnh đại diện</Typography>
+        <Typography variant="h6" mb={2}>
+          Cập nhật ảnh đại diện
+        </Typography>
         <Stack alignItems="center" spacing={2}>
           <Avatar src={preview} sx={{ width: 100, height: 100 }} />
 
@@ -111,7 +111,10 @@ export default function UpdateAvatarModal({ open, onClose, user }) {
             variant="contained"
             onClick={handleSave}
             disabled={!file || loading}
-            sx={{ backgroundColor: '#0084ff', '&:hover': { backgroundColor: '#006fd6' } }}
+            sx={{
+              backgroundColor: '#0084ff',
+              '&:hover': { backgroundColor: '#006fd6' },
+            }}
           >
             {loading ? 'Đang lưu...' : 'Lưu'}
           </Button>

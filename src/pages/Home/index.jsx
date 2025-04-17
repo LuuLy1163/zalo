@@ -17,9 +17,9 @@ import CloudIcon from '@mui/icons-material/Cloud';
 import SettingsIcon from '@mui/icons-material/Settings';
 import ChatPage from '../../assets/components/Chat';
 import ContactPage from '../../assets/components/Contact';
+import ProfileModal from '../../assets/components/ProfileModal';
 import { AppProvider } from '@toolpad/core/AppProvider';
 import { DashboardLayout } from '@toolpad/core/DashboardLayout';
-import ProfileModal from '../../assets/components/ProfileModal';
 import {
   Account,
   AccountPreview,
@@ -28,52 +28,34 @@ import {
 } from '@toolpad/core/Account';
 
 const NAVIGATION = [
-  { kind: 'header', title: '' },
-  { segment: 'chat', title: 'Tin nhắn', icon: <ChatIcon /> },
-  { segment: 'contact', title: 'Danh bạ', icon: <PermContactCalendarIcon /> },
-  { segment: 'cloud', title: 'Cloud của tôi', icon: <CloudIcon /> },
-  { segment: 'setting', title: 'Cài đặt', icon: <SettingsIcon /> },
+  { segment: 'chat',    title: 'Tin nhắn',    icon: <ChatIcon /> },
+  { segment: 'contact', title: 'Danh bạ',      icon: <PermContactCalendarIcon /> },
+  { segment: 'cloud',   title: 'Cloud của tôi',icon: <CloudIcon /> },
+  { segment: 'setting', title: 'Cài đặt',      icon: <SettingsIcon /> },
 ];
 
 const demoTheme = createTheme({
-  cssVariables: {
-    colorSchemeSelector: 'data-toolpad-color-scheme',
-  },
+  cssVariables: { colorSchemeSelector: 'data-toolpad-color-scheme' },
   colorSchemes: { light: true, dark: true },
   breakpoints: {
-    values: {
-      xs: 0,
-      sm: 600,
-      md: 600,
-      lg: 1200,
-      xl: 1536,
-    },
+    values: { xs: 0, sm: 600, md: 600, lg: 1200, xl: 1536 },
   },
 });
 
 function DemoPageContent({ pathname }) {
   let content;
-
   switch (pathname) {
-    case '/chat':
-      content = <ChatPage />;
-      break;
-    case '/contact':
-      content = <ContactPage />;
-      break;
+    case '/chat':    content = <ChatPage />;    break;
+    case '/contact': content = <ContactPage />; break;
     default:
       content = <Typography>Chưa có nội dung cho trang này</Typography>;
-      break;
   }
-
   return (
-    <Box sx={{ display: 'flex',
-      flexDirection: 'column',flexGrow: 1, }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
       {content}
     </Box>
   );
 }
-
 DemoPageContent.propTypes = {
   pathname: PropTypes.string.isRequired,
 };
@@ -83,28 +65,22 @@ function AccountSidebarPreview(props) {
   return (
     <Stack direction="column" p={0}>
       <Divider />
-      <AccountPreview
-        variant={mini ? 'condensed' : 'expanded'}
-        handleClick={handleClick}
-        open={open}
-      />
+      <AccountPreview variant={mini ? 'condensed' : 'expanded'} handleClick={handleClick} open={open} />
     </Stack>
   );
 }
-
 AccountSidebarPreview.propTypes = {
   handleClick: PropTypes.func,
-  mini: PropTypes.bool.isRequired,
   open: PropTypes.bool,
+  mini: PropTypes.bool.isRequired,
 };
 
 function SidebarFooterAccountPopover({ authentication, router, user }) {
-  const [openModal, setOpenModal] = React.useState(false);
   const navigate = useNavigate();
+  const [openModal, setOpenModal] = React.useState(false);
 
-  const handleOpen = () => setOpenModal(true);
+  const handleOpen  = () => setOpenModal(true);
   const handleClose = () => setOpenModal(false);
-
   const handleSignOut = () => {
     localStorage.removeItem('user');
     authentication.signOut();
@@ -112,53 +88,43 @@ function SidebarFooterAccountPopover({ authentication, router, user }) {
     router.navigate('/');
   };
 
-  const accounts = user ? [{
-    id: user._id?.$oid || 1,
-    name: user.username || 'Người dùng',
-    email: user.email || '',
-    image: user.avatarURL || '',
-    color: '#1976d2',
-  }] : [];
+  const accounts = user
+    ? [{
+        id:   user._id?.$oid || 1,
+        name: user.username || 'Người dùng',
+        email:user.email    || '',
+        image:user.avatarURL|| '',
+        color:'#1976d2',
+      }]
+    : [];
 
   return (
     <>
       <Stack direction="column">
         <Typography variant="body2" mx={2} mt={1}>Tài khoản</Typography>
         <MenuList>
-          {accounts.map((account) => (
+          {accounts.map(acc => (
             <MenuItem
-              key={account.id}
+              key={acc.id}
               component="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setTimeout(() => setOpenModal(true), 100);
-              }}
-              sx={{
-                justifyContent: 'flex-start',
-                width: '100%',
-                columnGap: 2,
-              }}
+              onClick={e => { e.stopPropagation(); handleOpen(); }}
+              sx={{ justifyContent: 'flex-start', width: '100%', columnGap: 2 }}
             >
               <ListItemIcon>
                 <Avatar
-                  sx={{
-                    width: 32,
-                    height: 32,
-                    fontSize: '0.95rem',
-                    bgcolor: account.color,
-                  }}
-                  src={account.image}
-                  alt={account.name}
+                  src={acc.image}
+                  alt={acc.name}
+                  sx={{ width: 32, height: 32, fontSize: '.95rem', bgcolor: acc.color }}
                 >
-                  {account.name[0]}
+                  {acc.name[0]}
                 </Avatar>
               </ListItemIcon>
               <ListItemText
-                sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: '100%' }}
-                primary={account.name}
-                secondary={account.email}
+                primary={acc.name}
+                secondary={acc.email}
                 primaryTypographyProps={{ variant: 'body2' }}
                 secondaryTypographyProps={{ variant: 'caption' }}
+                sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}
               />
             </MenuItem>
           ))}
@@ -173,11 +139,10 @@ function SidebarFooterAccountPopover({ authentication, router, user }) {
     </>
   );
 }
-
 SidebarFooterAccountPopover.propTypes = {
   authentication: PropTypes.object.isRequired,
-  router: PropTypes.object.isRequired,
-  user: PropTypes.object,
+  router:         PropTypes.object.isRequired,
+  user:           PropTypes.object,
 };
 
 function createPreviewComponent(mini) {
@@ -188,24 +153,29 @@ function createPreviewComponent(mini) {
 
 function SidebarFooterAccount({ mini, authentication, router, user }) {
   const PreviewComponent = React.useMemo(() => createPreviewComponent(mini), [mini]);
-
   return (
     <Account
       slots={{
         preview: PreviewComponent,
-        popoverContent: () => <SidebarFooterAccountPopover authentication={authentication} router={router} user={user} />,
+        popoverContent: () => (
+          <SidebarFooterAccountPopover
+            authentication={authentication}
+            router={router}
+            user={user}
+          />
+        ),
       }}
       slotProps={{
         popover: {
-          transformOrigin: { horizontal: 'left', vertical: 'bottom' },
-          anchorOrigin: { horizontal: 'right', vertical: 'bottom' },
+          transformOrigin: { horizontal: 'left',  vertical: 'bottom' },
+          anchorOrigin:    { horizontal: 'right', vertical: 'bottom' },
           disableAutoFocus: true,
           slotProps: {
             paper: {
               elevation: 0,
               sx: {
                 overflow: 'visible',
-                filter: (theme) =>
+                filter: theme =>
                   `drop-shadow(0px 2px 8px ${
                     theme.palette.mode === 'dark'
                       ? 'rgba(255,255,255,0.10)'
@@ -232,70 +202,55 @@ function SidebarFooterAccount({ mini, authentication, router, user }) {
     />
   );
 }
-
 SidebarFooterAccount.propTypes = {
-  mini: PropTypes.bool.isRequired,
+  mini:           PropTypes.bool.isRequired,
   authentication: PropTypes.object.isRequired,
-  router: PropTypes.object.isRequired,
-  user: PropTypes.object,
+  router:         PropTypes.object.isRequired,
+  user:           PropTypes.object,
 };
 
 function Home(props) {
   const { window: windowProp } = props;
-
   const [pathname, setPathname] = React.useState('/dashboard');
   const [user, setUser] = React.useState(() => {
-    const storedUser = localStorage.getItem('user');
-    return storedUser ? JSON.parse(storedUser) : null;
+    const stored = localStorage.getItem('user');
+    return stored ? JSON.parse(stored) : null;
   });
 
   React.useEffect(() => {
-    const handleStorageChange = () => {
-      const storedUser = localStorage.getItem('user');
-      setUser(storedUser ? JSON.parse(storedUser) : null);
+    const onStorage = () => {
+      const stored = localStorage.getItem('user');
+      setUser(stored ? JSON.parse(stored) : null);
     };
-    window.addEventListener('storage', handleStorageChange); 
-    return () => window.removeEventListener('storage', handleStorageChange);
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
   }, []);
 
-  const router = React.useMemo(() => {
-    return {
-      pathname,
-      searchParams: new URLSearchParams(),
-      navigate: (path) => setPathname(String(path)),
-    };
-  }, [pathname]);
+  const router = React.useMemo(() => ({
+    pathname,
+    searchParams: new URLSearchParams(),
+    navigate: path => setPathname(String(path)),
+  }), [pathname]);
 
-  const demoWindow = windowProp !== undefined ? windowProp() : undefined;
+  const demoWindow = windowProp ? windowProp() : undefined;
+  const session = user ? { user: { name: user.username, email: user.email, image: user.avatarURL } } : null;
 
-  const session = user
-    ? {
-        user: {
-          name: user.username || 'Người dùng',
-          email: user.email || '',
-          image: user.avatarURL || '',
-        },
-      }
-    : null;
-
-  const authentication = React.useMemo(() => {
-    return {
-      signIn: () => {
-        const storedUser = localStorage.getItem('user');
-        setUser(storedUser ? JSON.parse(storedUser) : null);
-      },
-      signOut: () => {
-        setUser(null);
-        router.navigate('/');
-      },
-    };
-  }, [router]);
+  const authentication = React.useMemo(() => ({
+    signIn:  () => {
+      const stored = localStorage.getItem('user');
+      setUser(stored ? JSON.parse(stored) : null);
+    },
+    signOut: () => {
+      setUser(null);
+      router.navigate('/');
+    }
+  }), [router]);
 
   const SidebarFooter = React.useMemo(
-    () => (props) => (
+    () => props => (
       <SidebarFooterAccount {...props} authentication={authentication} router={router} user={user} />
     ),
-    [authentication, router, user]
+    [authentication, router, user],
   );
 
   return (
@@ -320,7 +275,6 @@ function Home(props) {
     </AppProvider>
   );
 }
-
 Home.propTypes = {
   window: PropTypes.func,
 };

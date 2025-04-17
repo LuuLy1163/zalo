@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import {
   Modal,
@@ -10,7 +11,6 @@ import {
   FormControl,
   InputLabel,
 } from '@mui/material';
-import { useState, useEffect } from 'react';
 
 const modalStyle = {
   position: 'absolute',
@@ -31,7 +31,6 @@ export default function UpdateProfileModal({ open, onClose, user }) {
     gender: '',
     dateOfBirth: '',
   });
-
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -46,7 +45,7 @@ export default function UpdateProfileModal({ open, onClose, user }) {
   }, [user]);
 
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
   const handleSubmit = async () => {
@@ -54,12 +53,12 @@ export default function UpdateProfileModal({ open, onClose, user }) {
       alert('Tên người dùng không được để trống');
       return;
     }
-  
     setLoading(true);
     try {
       const res = await axios.put('http://localhost:5000/api/auth/updateProfile', form);
-      alert(res.data.message);
-  
+      alert(res.data.message || 'Cập nhật thành công');
+
+      // Cập nhật localStorage và reload để lấy dữ liệu mới
       const updatedUser = {
         ...user,
         username: form.username,
@@ -67,26 +66,29 @@ export default function UpdateProfileModal({ open, onClose, user }) {
         dateOfBirth: form.dateOfBirth,
       };
       localStorage.setItem('user', JSON.stringify(updatedUser));
-  
+
       onClose();
       window.location.reload();
     } catch (err) {
+      console.error(err);
       alert(err.response?.data?.error || 'Cập nhật thất bại');
     } finally {
       setLoading(false);
     }
-  };  
+  };
 
   return (
     <Modal
       open={open}
       onClose={(event, reason) => {
         if (reason === 'backdropClick') return;
-        onClose?.();
+        onClose();
       }}
     >
       <Box sx={modalStyle} onClick={(e) => e.stopPropagation()}>
-        <Typography variant="h6" mb={2}>Cập nhật thông tin</Typography>
+        <Typography variant="h6" mb={2}>
+          Cập nhật thông tin
+        </Typography>
 
         <TextField
           name="username"
@@ -120,9 +122,7 @@ export default function UpdateProfileModal({ open, onClose, user }) {
           margin="normal"
           value={form.dateOfBirth}
           onChange={handleChange}
-          InputLabelProps={{
-            shrink: true,
-          }}
+          InputLabelProps={{ shrink: true }}
         />
 
         <Button

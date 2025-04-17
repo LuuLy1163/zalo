@@ -85,7 +85,7 @@ export default function VerticalTabs() {
         <FriendList />
       </TabPanel>
       <TabPanel value={value} index={1}>
-      <Box p={2}>Item Four</Box>
+        <FriendRequestPanel />
       </TabPanel>
       <TabPanel value={value} index={2}>
       <FriendRequestPanel />
