@@ -2,26 +2,22 @@ import React, { useState, useEffect } from 'react';
 import { styled } from '@mui/material/styles';
 import {
     Box, AppBar, Toolbar, IconButton, Typography, List, ListItem, ListItemButton, ListItemIcon,
-    ListItemText, Avatar, TextField, InputAdornment, Tabs, Tab, MenuItem, Modal, Button
+    ListItemText, Avatar, TextField, InputAdornment, Tabs, Tab, MenuItem, Button
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import CloseIcon from '@mui/icons-material/Close';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
-import MoreVertIcon from '@mui/icons-material/MoreVert';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import CallIcon from '@mui/icons-material/Call';
-import VideocamIcon from '@mui/icons-material/Videocam';
-import AttachFileIcon from '@mui/icons-material/AttachFile';
-import EmojiEmotionsIcon from '@mui/icons-material/EmojiEmotions';
-import ImageIcon from '@mui/icons-material/Image';
-import SendIcon from '@mui/icons-material/Send';
-import { blue } from '@mui/material/colors';
+import AddFriend from './AddFriend';
 import { Scrollbar } from 'react-scrollbars-custom';
 import axios from 'axios';
+import ChatDetail from './ChatDetail'; 
 
-const initialChatList = [
-    { id: 1, name: 'Quang Hùng', lastMessage: 'Xin chào bạn', time: '10 phút', type: 'person', avatar: '/assets/images/User-avatar.svg.png'}
-];
+const getInitialChatList = () => {
+    const storedChatList = localStorage.getItem('chatList');
+    return storedChatList ? JSON.parse(storedChatList) : [
+        { id: 1, name: 'Quang Hùng', lastMessage: 'Xin chào bạn', time: '10 phút', type: 'person', avatar: '/assets/images/User-avatar.svg.png'}
+    ];
+};
 
 const ChatListContainer = styled(Box)(({ theme }) => ({
     width: 350,
@@ -32,118 +28,46 @@ const ChatListContainer = styled(Box)(({ theme }) => ({
     height: '100%',
 }));
 
-  const ChatListHeader = styled(AppBar)(({ theme }) => ({
+const ChatListHeader = styled(AppBar)(({ theme }) => ({
     backgroundColor: theme.palette.background.paper,
     color: theme.palette.text.primary,
     boxShadow: 'none',
     borderBottom: `1px solid ${theme.palette.divider}`,
     position: 'static',
-  }));
+}));
 
-  const ChatListContent = styled(Box)(({ theme }) => ({
+const ChatListContent = styled(Box)(({ theme }) => ({
     overflowY: 'auto',
     flexGrow: 1,
     backgroundColor: theme.palette.background.default,
     color: theme.palette.text.primary,
-  }));
+}));
 
-  const ChatDetailContainer = styled(Box)(({ theme }) => ({
-    flexGrow: 1,
-    backgroundColor: theme.palette.background.default,
-    color: theme.palette.text.primary,
-    display: 'flex',
-    flexDirection: 'column',
-    height: '100%',
-  }));
-
-  const ChatDetailHeader = styled(Toolbar)(({ theme }) => ({
-    backgroundColor: theme.palette.background.paper,
-    color: theme.palette.text.primary,
-    boxShadow: 'none',
-    borderBottom: `1px solid ${theme.palette.divider}`,
-    display: 'flex',
-    alignItems: 'center',
-  }));
-
-  const ChatDetailBody = styled(Box)(({ theme }) => ({
-    flexGrow: 1,
-    padding: theme.spacing(2),
-    overflowY: 'auto',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    backgroundColor: theme.palette.background.default,
-    color: theme.palette.text.primary,
-  }));
-
-  const ChatDetailInput = styled(Toolbar)(({ theme }) => ({
-    backgroundColor: theme.palette.background.paper,
-    borderTop: `1px solid ${theme.palette.divider}`,
-    padding: theme.spacing(1),
-    display: 'flex',
-    alignItems: 'center',
-  }));
-
-  const StyledTextField = styled(TextField)(({ theme }) => ({
-    flexGrow: 1,
-    marginRight: theme.spacing(1),
-    '& .MuiOutlinedInput-root': {
-      borderRadius: '20px',
-      backgroundColor: theme.palette.background.default,
-      color: theme.palette.text.primary,
-    },
-  }));
-
-  const HoverIconButton = styled(IconButton)(({ theme }) => ({
+const HoverIconButton = styled(IconButton)(({ theme }) => ({
     '&:hover': {
-      backgroundColor: theme.palette.primary.light,
+        backgroundColor: theme.palette.primary.light,
     },
-  }));
+}));
 
-  const HoverListItemButton = styled(ListItemButton)(({ theme }) => ({
+const HoverListItemButton = styled(ListItemButton)(({ theme }) => ({
     '&:hover': {
-      backgroundColor: theme.palette.primary.light,
+        backgroundColor: theme.palette.primary.light,
     },
     '&.Mui-selected': {
-      backgroundColor: theme.palette.primary.main,
-      color: theme.palette.text.secondary,
+        backgroundColor: theme.palette.primary.main,
+        color: theme.palette.text.secondary,
     },
-  }));
+}));
 
-  const HoverTab = styled(Tab)(({ theme }) => ({
+const HoverTab = styled(Tab)(({ theme }) => ({
     '&:hover': {
-      backgroundColor: theme.palette.primary.light,
+        backgroundColor: theme.palette.primary.light,
     },
-  }));
-
-  const HoverMenuItem = styled(MenuItem)(({ theme }) => ({
-    '&:hover': {
-      backgroundColor: theme.palette.primary.light,
-    },
-  }));
-
-  const AddFriendModal = styled(Modal)(({ theme }) => ({
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  }));
-
-  const AddFriendModalContent = styled(Box)(({ theme }) => ({
-    backgroundColor: theme.palette.background.paper,
-    border: `2px solid ${theme.palette.divider}`,
-    boxShadow: theme.shadows[5],
-    padding: theme.spacing(2, 4, 3),
-    borderRadius: theme.shape.borderRadius,
-    textAlign: 'center',
-    color: theme.palette.text.primary,
-  }));
+}));
 
 const Chat = () => {
     const [searchText, setSearchText] = useState('');
     const [tabValue, setTabValue] = useState(0);
-    const [anchorEl, setAnchorEl] = useState(null);
-    const openMenu = Boolean(anchorEl);
     const [selectedChat, setSelectedChat] = useState(null);
     const [isSearching, setIsSearching] = useState(false);
     const [searchKeyword, setSearchKeyword] = useState('');
@@ -151,9 +75,14 @@ const Chat = () => {
     const [isAddFriendModalOpen, setIsAddFriendModalOpen] = useState(false);
     const [selectedUserToAdd, setSelectedUserToAdd] = useState(null);
     const [friendRequestsSent, setFriendRequestsSent] = useState([]);
-    const [chatList, setChatList] = useState(initialChatList);
+    const [chatList, setChatList] = useState(getInitialChatList()); // Sử dụng getInitialChatList
 
-    const currentUserPhone = 'YOUR_PHONE_NUMBER'; 
+    const currentUserPhone = '0877896883';
+
+    // Lưu chatList vào localStorage mỗi khi nó thay đổi
+    useEffect(() => {
+        localStorage.setItem('chatList', JSON.stringify(chatList));
+    }, [chatList]);
 
     const handleChatClick = (chat) => {
         setSelectedChat(chat);
@@ -198,8 +127,6 @@ const Chat = () => {
                 console.error('Chi tiết lỗi từ server:', error.response.status, error.response.data);
             }
             setSearchResults([]);
-        } finally {
-            console.log('Kết thúc quá trình tìm kiếm');
         }
     };
 
@@ -221,9 +148,8 @@ const Chat = () => {
 
     const handleAddFriend = async () => {
         if (selectedUserToAdd) {
-            console.log('Gửi yêu cầu kết bạn đến:', selectedUserToAdd.phoneNumber);
             try {
-                const response = await fetch('http://localhost:5000/api/friends/request', { 
+                const response = await fetch('http://localhost:5000/api/friend/request', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -238,23 +164,22 @@ const Chat = () => {
                 if (response.ok) {
                     setFriendRequestsSent(prev => [...prev, selectedUserToAdd._id]);
                     handleCloseAddFriendModal();
+                    const newUserChat = {
+                        id: selectedUserToAdd._id,
+                        name: selectedUserToAdd.username,
+                        avatar: selectedUserToAdd.avatarURL || '/static/images/avatar/default.jpg',
+                        lastMessage: 'Đã gửi lời mời kết bạn',
+                        time: 'Vài giây trước',
+                        type: 'person',
+                    };
                     setChatList(prev => {
                         const alreadyInChat = prev.some(chat => chat.id === selectedUserToAdd._id);
                         if (alreadyInChat) {
                             return prev;
                         }
-                        return [
-                            ...prev,
-                            {
-                                id: selectedUserToAdd._id,
-                                name: selectedUserToAdd.username,
-                                avatar: selectedUserToAdd.avatarURL || '/static/images/avatar/default.jpg',
-                                lastMessage: 'Đã gửi lời mời kết bạn',
-                                time: 'Vài giây trước',
-                                type: 'person',
-                            }
-                        ];
+                        return [newUserChat, ...prev];
                     });
+                    setSelectedChat(newUserChat);
                     console.log('Gửi yêu cầu kết bạn thành công');
                 } else {
                     try {
@@ -382,98 +307,15 @@ const Chat = () => {
             </ChatListContainer>
 
             {/* Chat Detail Area (Right Side) */}
-            {selectedChat ? (
-                <ChatDetailContainer>
-                    <ChatDetailHeader>
-                        <HoverIconButton color="inherit" onClick={handleBackToChatList}>
-                            <ArrowBackIcon />
-                        </HoverIconButton>
-                        <Avatar src={selectedChat.avatar} sx={{ mr: 2 }} />
-                        <Typography variant="h6">{selectedChat.name}</Typography>
-                        <Box sx={{ flexGrow: 1 }} />
-                        {selectedChat.type === 'person' && (
-                            <React.Fragment>
-                                <HoverIconButton color="inherit">
-                                    <CallIcon />
-                                </HoverIconButton>
-                                <HoverIconButton color="inherit">
-                                    <VideocamIcon />
-                                </HoverIconButton>
-                                <HoverIconButton color="inherit">
-                                    <PersonAddIcon />
-                                </HoverIconButton>
-                            </React.Fragment>
-                        )}
-                        <HoverIconButton color="inherit">
-                            <MoreVertIcon />
-                        </HoverIconButton>
-                    </ChatDetailHeader>
-                    <ChatDetailBody>
-                        {selectedChat.isCurrentUser ? (
-                            <Typography variant="subtitle1" color="textSecondary">
-                                Đây là giao diện khi bạn chọn chính mình (hoặc một liên hệ chưa có tin nhắn cụ thể).
-                                Trong ứng dụng thực tế, bạn sẽ hiển thị lịch sử tin nhắn ở đây.
-                            </Typography>
-                        ) : (
-                            <Typography variant="subtitle1" color="textSecondary">
-                                Trong ứng dụng thực tế, bạn sẽ hiển thị lịch sử tin nhắn ở đây.
-                            </Typography>
-                        )}
-                        {/* In a real application, messages would be rendered here */}
-                    </ChatDetailBody>
-                    <ChatDetailInput>
-                        <HoverIconButton color="inherit">
-                            <AttachFileIcon />
-                        </HoverIconButton>
-                        <HoverIconButton color="inherit">
-                            <EmojiEmotionsIcon />
-                        </HoverIconButton>
-                        <HoverIconButton color="inherit">
-                            <ImageIcon />
-                        </HoverIconButton>
-                        <StyledTextField
-                            variant="outlined"
-                            size="small"
-                            placeholder={`Nhập tin nhắn gửi ${selectedChat.name}`}
-                        />
-                        <HoverIconButton color="primary">
-                            <SendIcon />
-                        </HoverIconButton>
-                    </ChatDetailInput>
-                </ChatDetailContainer>
-            ) : (
-                <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: '#f0f2f5', height: '100%' }}>
-                    <Typography variant="h6" color="textSecondary">
-                        Chọn một cuộc trò chuyện để xem chi tiết
-                    </Typography>
-                </Box>
-            )}
+            <ChatDetail selectedChat={selectedChat} onBackToChatList={handleBackToChatList} />
 
             {/* Add Friend Confirmation Modal */}
-            <AddFriendModal
+            <AddFriend
                 open={isAddFriendModalOpen}
                 onClose={handleCloseAddFriendModal}
-                aria-labelledby="add-friend-modal-title"
-                aria-describedby="add-friend-modal-description"
-            >
-                <AddFriendModalContent>
-                    <Typography id="add-friend-modal-title" variant="h6" component="h2">
-                        Thêm bạn bè
-                    </Typography>
-                    {selectedUserToAdd && (<Typography id="add-friend-modal-description" sx={{ mt: 2 }}>
-                        Bạn có muốn gửi lời mời kết bạn đến <b>{selectedUserToAdd.username}</b> không?
-                    </Typography>
-                    )}
-                    <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
-                        <Button onClick={handleCloseAddFriendModal} color="primary">
-                            Hủy
-                        </Button>
-                        <Button onClick={handleAddFriend} color="primary" autoFocus sx={{ ml: 1 }}>
-                            Gửi lời mời
-                        </Button>
-                    </Box>
-                </AddFriendModalContent>
-            </AddFriendModal>
+                onConfirm={handleAddFriend}
+                user={selectedUserToAdd}
+            />
         </Box>
     );
 };
