@@ -4,9 +4,8 @@ import {
   Box,
   Typography,
   Button,
-  Avatar,
   Stack,
-  IconButton,
+  IconButton
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import axios from 'axios';
@@ -21,10 +20,11 @@ const modalStyle = {
   borderRadius: 2,
   boxShadow: 24,
   p: 3,
+  position: 'relative'
 };
 
-export default function UpdateAvatarModal({ open, onClose, user }) {
-  const [preview, setPreview] = useState(user.avatarURL || '');
+export default function UpdateCoverModal({ open, onClose, user }) {
+  const [preview, setPreview] = useState(user.coverImage || '');
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -33,38 +33,33 @@ export default function UpdateAvatarModal({ open, onClose, user }) {
     if (selected) {
       setFile(selected);
       const reader = new FileReader();
-      reader.onloadend = () => setPreview(reader.result);
+      reader.onloadend = () => {
+        setPreview(reader.result);
+      };
       reader.readAsDataURL(selected);
     }
   };
 
   const handleSave = async () => {
     if (!file) return;
+
     const formData = new FormData();
-    formData.append('avatarURL', file);
+    formData.append('coverImage', file);
     formData.append('email', user.email);
 
     try {
       setLoading(true);
-      const res = await axios.put(
-        'http://localhost:5000/api/auth/updateAvatar',
-        formData,
-        { headers: { 'Content-Type': 'multipart/form-data' } }
-      );
+      const res = await axios.put('http://localhost:5000/api/auth/updateImageCover', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
 
-      // Cập nhật localStorage và reload để lấy avatar mới
-      const updatedUser = {
-        ...user,
-        avatarURL: res.data.avatarURL || preview,
-      };
-      localStorage.setItem('user', JSON.stringify(updatedUser));
-
-      alert(res.data.message || 'Cập nhật thành công');
+      alert(res.data.message || 'Cập nhật ảnh bìa thành công');
       onClose();
-      window.location.reload();
     } catch (err) {
       console.error(err);
-      alert(err.response?.data?.error || 'Cập nhật thất bại');
+      alert(err.response?.data?.error || 'Cập nhật ảnh bìa thất bại');
     } finally {
       setLoading(false);
     }
@@ -75,32 +70,32 @@ export default function UpdateAvatarModal({ open, onClose, user }) {
       open={open}
       onClose={(event, reason) => {
         if (reason === 'backdropClick') return;
-        onClose();
+        onClose?.();
       }}
     >
       <Box sx={modalStyle} onClick={(e) => e.stopPropagation()}>
-        {/* Nút đóng */}
-        <IconButton
-          onClick={onClose}
-          sx={{ position: 'absolute', top: 8, right: 8 }}
-        >
+        <IconButton onClick={onClose} sx={{ position: 'absolute', top: 8, right: 8 }}>
           <CloseIcon />
         </IconButton>
 
-        <Typography variant="h6" mb={2}>
-          Cập nhật ảnh đại diện
-        </Typography>
+        <Typography variant="h6" mb={2}>Cập nhật ảnh bìa</Typography>
+
         <Stack alignItems="center" spacing={2}>
-          <Avatar src={preview} sx={{ width: 100, height: 100 }} />
+          <Box
+            component="img"
+            src={preview}
+            alt="preview"
+            sx={{ width: '100%', height: 120, objectFit: 'cover', borderRadius: 1 }}
+          />
 
           <input
             type="file"
             accept="image/*"
             onChange={handleFileChange}
             style={{ display: 'none' }}
-            id="upload-avatar-input"
+            id="upload-cover-input"
           />
-          <label htmlFor="upload-avatar-input">
+          <label htmlFor="upload-cover-input">
             <Button variant="outlined" component="span">
               Chọn ảnh
             </Button>
@@ -111,10 +106,7 @@ export default function UpdateAvatarModal({ open, onClose, user }) {
             variant="contained"
             onClick={handleSave}
             disabled={!file || loading}
-            sx={{
-              backgroundColor: '#0084ff',
-              '&:hover': { backgroundColor: '#006fd6' },
-            }}
+            sx={{ backgroundColor: '#0084ff', '&:hover': { backgroundColor: '#006fd6' } }}
           >
             {loading ? 'Đang lưu...' : 'Lưu'}
           </Button>
