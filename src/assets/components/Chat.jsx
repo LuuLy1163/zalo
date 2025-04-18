@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { styled } from '@mui/material/styles';
 import {
     Box, AppBar, Toolbar, IconButton, Typography, List, ListItem, ListItemButton, ListItemIcon,
-    ListItemText, Avatar, TextField, InputAdornment, Tabs, Tab, MenuItem, Button
+    ListItemText, Avatar, TextField, InputAdornment, Tabs, Tab, Button
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import CloseIcon from '@mui/icons-material/Close';
@@ -10,13 +10,11 @@ import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import AddFriend from './AddFriend';
 import { Scrollbar } from 'react-scrollbars-custom';
 import axios from 'axios';
-import ChatDetail from './ChatDetail'; 
+import ChatDetail from './ChatDetail';
 
 const getInitialChatList = () => {
     const storedChatList = localStorage.getItem('chatList');
-    return storedChatList ? JSON.parse(storedChatList) : [
-        { id: 1, name: 'Quang Hùng', lastMessage: 'Xin chào bạn', time: '10 phút', type: 'person', avatar: '/assets/images/User-avatar.svg.png'}
-    ];
+    return storedChatList ? JSON.parse(storedChatList) : [];
 };
 
 const ChatListContainer = styled(Box)(({ theme }) => ({
@@ -81,9 +79,64 @@ const Chat = () => {
     const currentUserPhone = currentUser?.phoneNumber || '';
 
     useEffect(() => {
-        localStorage.setItem('chatList', JSON.stringify(chatList));
-    }, [chatList]);
+        if (currentUser && currentUser.friends && Array.isArray(currentUser.friends)) {
+            console.log('Dữ liệu bạn bè:', currentUser.friends);
+    
+            // Lấy thông tin chi tiết về bạn bè từ API hoặc database
+            const fetchFriendDetails = async (friendId) => {
+                try {
+                    const response = await axios.get(`http://localhost:5000/api/auth/users/${friendId}`); // Giả sử có API này để lấy thông tin bạn bè
+                    return response.data; // Giả sử response.data chứa thông tin chi tiết của bạn
+                } catch (error) {
+                    console.error('Lỗi khi lấy thông tin bạn bè:', error);
+                    return null;
+                }
+            };
+    
+            // Fetch chi tiết bạn bè và thêm vào chatList
+            const friendsToChatList = [];
+            const fetchData = async () => {
+                for (const friend of currentUser.friends) {
+                    const friendDetail = await fetchFriendDetails(friend.friendId); // Lấy thông tin chi tiết của bạn
+                    if (friendDetail) {
+                        friendsToChatList.push({
+                            id: friendDetail._id,
+                            name: friendDetail.username,
+                            lastMessage: '',
+                            time: '',
+                            type: 'person',
+                            avatar: friendDetail.avatarURL || '/static/images/avatar/default.jpg',
+                            phoneNumber: friendDetail.phoneNumber,
+                        });
+                    }
+                }
+    
+                // Cập nhật chatList, tránh trùng lặp
+                setChatList(prevList => {
+                    const existingIds = new Set(prevList.map(chat => chat.id));
+                    const merged = [
+                        ...friendsToChatList.filter(friend => !existingIds.has(friend.id)),
+                        ...prevList,
+                    ];
+                    return merged;
+                });
+            };
+    
+            fetchData(); // Gọi hàm async để lấy dữ liệu
+        }
+    }, [currentUser]); // Chạy lại khi `currentUser` thay đổi
+    
 
+    // Lưu trữ `chatList` vào localStorage mỗi khi có sự thay đổi
+    useEffect(() => {
+        if (chatList.length) {
+            localStorage.setItem('chatList', JSON.stringify(chatList));
+        }
+    }, [chatList]);
+    useEffect(() => {
+        console.log('Chat List sau khi cập nhật:', chatList); // Thêm dòng log này để kiểm tra
+    }, [chatList]);
+    
     const handleChatClick = (chat) => {
         setSelectedChat(chat);
     };
@@ -123,9 +176,6 @@ const Chat = () => {
             }
         } catch (error) {
             console.error('Lỗi tìm kiếm người dùng (catch):', error);
-            if (error.response) {
-                console.error('Chi tiết lỗi từ server:', error.response.status, error.response.data);
-            }
             setSearchResults([]);
         }
     };
@@ -181,12 +231,8 @@ const Chat = () => {
                     setSelectedChat(newUserChat);
                     console.log('Gửi yêu cầu kết bạn thành công');
                 } else {
-                    try {
-                        const errorData = await response.json();
-                        console.error('Lỗi gửi yêu cầu kết bạn:', errorData);
-                    } catch (error) {
-                        console.error('Lỗi gửi yêu cầu kết bạn (không parse được JSON lỗi):', response.status, response.statusText);
-                    }
+                    const errorData = await response.json();
+                    console.error('Lỗi gửi yêu cầu kết bạn:', errorData);
                 }
             } catch (error) {
                 console.error('Lỗi gửi yêu cầu kết bạn (catch):', error);
@@ -272,36 +318,37 @@ const Chat = () => {
                     )}
                 </ChatListHeader>
                 <ChatListContent>
-                    <Scrollbar style={{ width: '100%', height: '100%' }}>
-                        {filteredChats.map((chat) => (
-                            <HoverListItemButton
-                                key={chat.id}
-                                selected={selectedChat?.id === chat.id}
-                                onClick={() => handleChatClick(chat)}
-                                alignItems="flex-start"
-                            >
-                                <ListItemIcon>
-                                    <Avatar src={chat.avatar} />
-                                </ListItemIcon>
-                                <ListItemText
-                                    primary={chat.name}
-                                    secondary={
-                                        <React.Fragment>
-                                            <Typography
-                                                sx={{ display: 'inline' }}
-                                                component="span"
-                                                variant="body2"
-                                                color="text.primary"
-                                            >
-                                                {chat.lastMessage}
-                                            </Typography>
-                                            {` — ${chat.time}`}
-                                        </React.Fragment>
-                                    }
-                                />
-                            </HoverListItemButton>
-                        ))}
-                    </Scrollbar>
+                <Scrollbar style={{ width: '100%', height: '100%' }}>
+    {filteredChats.map((chat) => (
+        <HoverListItemButton
+            key={chat.id}
+            selected={selectedChat?.id === chat.id}
+            onClick={() => handleChatClick(chat)}
+            alignItems="flex-start"
+        >
+            <ListItemIcon>
+                <Avatar src={chat.avatar} />
+            </ListItemIcon>
+            <ListItemText
+                primary={chat.name}
+                secondary={
+                    <React.Fragment>
+                        <Typography
+                            sx={{ display: 'inline' }}
+                            component="span"
+                            variant="body2"
+                            color="text.primary"
+                        >
+                            {chat.lastMessage}
+                        </Typography>
+                        {` — ${chat.time}`}
+                    </React.Fragment>
+                }
+            />
+        </HoverListItemButton>
+    ))}
+</Scrollbar>
+
                 </ChatListContent>
             </ChatListContainer>
 
