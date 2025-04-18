@@ -15,6 +15,7 @@ import SendIcon from '@mui/icons-material/Send';
 import axios from 'axios';
 import { io } from 'socket.io-client';
 import moment from 'moment';
+import { Scrollbar } from 'react-scrollbars-custom'; // Import Scrollbar
 
 const ChatDetailContainer = styled(Box)(({ theme }) => ({
     flexGrow: 1,
@@ -37,7 +38,7 @@ const ChatDetailHeader = styled(Toolbar)(({ theme }) => ({
 const ChatDetailBody = styled(Box)(({ theme }) => ({
     flexGrow: 1,
     padding: theme.spacing(2),
-    overflowY: 'auto',
+    overflowY: 'auto', // Để lại cái này để dự phòng nếu Scrollbar có vấn đề
     display: 'flex',
     flexDirection: 'column',
     backgroundColor: theme.palette.background.default,
@@ -86,7 +87,6 @@ const ChatDetail = ({ selectedChat, onBackToChatList }) => {
             senderId: currentUser._id,
             rereceiveId: selectedChat.id, // đúng với BE
         });
-        
 
         socket.current.on('joined_room', ({ conversationId }) => {
             setConversationId(conversationId);
@@ -178,36 +178,38 @@ const ChatDetail = ({ selectedChat, onBackToChatList }) => {
             </ChatDetailHeader>
 
             <ChatDetailBody>
-                {messages.map((msg, index) => {
-                    const isMine = msg.senderId?._id === currentUser._id || msg.senderId === currentUser._id;
-                    return (
-                        <Box
-                            key={index}
-                            sx={{
-                                display: 'flex',
-                                flexDirection: isMine ? 'row-reverse' : 'row',
-                                alignItems: 'center',
-                                mb: 1,
-                            }}
-                        >
-                            {!isMine && <Avatar src={selectedChat.avatar} sx={{ mr: 1 }} />}
-                            <Tooltip title={moment(msg.createdAt || msg.timestamp).format('HH:mm DD/MM')} arrow>
-                                <Box
-                                    sx={{
-                                        bgcolor: isMine ? 'primary.light' : 'grey.300',
-                                        color: 'black',
-                                        p: 1.5,
-                                        borderRadius: 2,
-                                        maxWidth: '70%',
-                                    }}
-                                >
-                                    {msg.content}
-                                </Box>
-                            </Tooltip>
-                        </Box>
-                    );
-                })}
-                <div ref={messagesEndRef} />
+                <Scrollbar style={{ width: '100%', height: '100%' }}>
+                    {messages.map((msg, index) => {
+                        const isMine = msg.senderId?._id === currentUser._id || msg.senderId === currentUser._id;
+                        return (
+                            <Box
+                                key={index}
+                                sx={{
+                                    display: 'flex',
+                                    flexDirection: isMine ? 'row-reverse' : 'row',
+                                    alignItems: 'center',
+                                    mb: 1,
+                                }}
+                            >
+                                {!isMine && <Avatar src={selectedChat.avatar} sx={{ mr: 1 }} />}
+                                <Tooltip title={moment(msg.createdAt || msg.timestamp).format('HH:mm DD/MM')} arrow>
+                                    <Box
+                                        sx={{
+                                            bgcolor: isMine ? 'primary.light' : 'grey.300',
+                                            color: 'black',
+                                            p: 1.5,
+                                            borderRadius: 2,
+                                            maxWidth: '70%',
+                                        }}
+                                    >
+                                        {msg.content}
+                                    </Box>
+                                </Tooltip>
+                            </Box>
+                        );
+                    })}
+                    <div ref={messagesEndRef} />
+                </Scrollbar>
             </ChatDetailBody>
 
             <ChatDetailInput>
