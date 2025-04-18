@@ -38,7 +38,7 @@ const ChatDetailHeader = styled(Toolbar)(({ theme }) => ({
 const ChatDetailBody = styled(Box)(({ theme }) => ({
     flexGrow: 1,
     padding: theme.spacing(2),
-    overflowY: 'auto', // Để lại cái này để dự phòng nếu Scrollbar có vấn đề
+    overflowY: 'auto',
     display: 'flex',
     flexDirection: 'column',
     backgroundColor: theme.palette.background.default,
@@ -80,34 +80,31 @@ const ChatDetail = ({ selectedChat, onBackToChatList }) => {
     useEffect(() => {
         if (!selectedChat || !currentUser) return;
 
-        socket.current = io('http://localhost:5000');
+        // Khởi tạo socket chỉ một lần
+        if (!socket.current) {
+            socket.current = io('http://localhost:5000');
+            socket.current.emit('joinUserRoom', currentUser._id);
+        }
 
-        // Tham gia cuộc trò chuyện
+        // Tham gia phòng cuộc trò chuyện
         socket.current.emit('join_conversation', {
             senderId: currentUser._id,
-            rereceiveId: selectedChat.id, // đúng với BE
+            rereceiveId: selectedChat.id,
         });
 
+        // Lắng nghe sự kiện khi tham gia cuộc trò chuyện
         socket.current.on('joined_room', ({ conversationId }) => {
             setConversationId(conversationId);
             fetchMessages(conversationId);
         });
 
+        // Lắng nghe tin nhắn mới
         socket.current.on('receive_message', (message) => {
             setMessages((prev) => [...prev, message]);
         });
 
-        socket.current.on('message_sent', (message) => {
-            setMessages((prev) => [...prev, message]);
-        });
-
-        socket.current.on('conversation_updated', (data) => {
-            // Optional: cập nhật UI conversation nếu cần
-            console.log('Conversation updated:', data);
-        });
-
         return () => {
-            socket.current.disconnect();
+            socket.current.off('receive_message'); // Hủy sự kiện khi unmount
         };
     }, [selectedChat]);
 
@@ -124,15 +121,23 @@ const ChatDetail = ({ selectedChat, onBackToChatList }) => {
         const content = newMessage.trim();
         if (!content || !conversationId) return;
 
-        const messageData = {
+        const tempMessage = {
+            senderId: currentUser._id,
+            content,
+            messageType: 'text',
+            createdAt: new Date(), // Tạo thời gian cho message giả
+        };
+
+        setMessages((prev) => [...prev, tempMessage]); // UI phản hồi tức thì
+        setNewMessage('');
+
+        // Gửi tin nhắn lên server
+        socket.current.emit('sendMessage', {
             conversationId,
             senderId: currentUser._id,
             content,
             messageType: 'text',
-        };
-
-        socket.current.emit('sendMessage', messageData);
-        setNewMessage('');
+        });
     };
 
     const handleKeyPress = (e) => {
@@ -142,6 +147,7 @@ const ChatDetail = ({ selectedChat, onBackToChatList }) => {
         }
     };
 
+    // Tự động cuộn xuống dưới khi có tin nhắn mới
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
