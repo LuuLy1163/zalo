@@ -29,21 +29,17 @@ const SignLogin = () => {
       showAlert("Vui lòng nhập đầy đủ thông tin", "warning");
       return;
     }
-  
+
     const isEmail = loginInput.includes("@");
-  
+
     let bodyData;
     if (isEmail) {
       bodyData = { email: loginInput, password };
     } else {
       let phone = loginInput.trim().replace(/\s/g, "");
-      // ✨ Convert 0xxxxxxx => 84xxxxxxxx
-      // if (phone.startsWith("0")) {
-      //   phone = "84" + phone.slice(1);
-      // }
       bodyData = { phoneNumber: phone, password };
     }
-  
+
     try {
       const response = await fetch("http://localhost:5000/api/auth/login", {
         method: "POST",
@@ -52,20 +48,22 @@ const SignLogin = () => {
         },
         body: JSON.stringify(bodyData),
       });
-  
+
       const data = await response.json();
       console.log("Login response:", data);
-  
+
       if (!response.ok) {
         showAlert(data?.error || data?.message || "Đăng nhập thất bại", "error");
         return;
       }
-  
-      localStorage.setItem("accessToken", data.data.accessToken);
-      localStorage.setItem("user", JSON.stringify(data.data.user));
-  
+
+      // ✅ Lưu token và user vào localStorage
+      const { accessToken, user } = data.data;
+      localStorage.setItem("accessToken", accessToken); // Lưu accessToken
+      localStorage.setItem("user", JSON.stringify(user));  // Lưu thông tin user
+
       showAlert("Đăng nhập thành công!", "success");
-  
+
       setTimeout(() => {
         navigate("/home");
       }, 1000);
@@ -74,7 +72,6 @@ const SignLogin = () => {
       showAlert("Lỗi kết nối server. Vui lòng thử lại", "error");
     }
   };
-  
 
   return (
     <div className="container-login">

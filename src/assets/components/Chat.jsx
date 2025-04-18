@@ -82,33 +82,42 @@ const Chat = () => {
       socket.emit('joinUserRoom', currentUser._id); // ✅ Join room của user
     }
 
-    const fetchFriendDetails = async (friendId) => {
-      try {
-        const response = await axios.get(`http://localhost:5000/api/auth/users/${friendId}`);
-        return response.data;
-      } catch (error) {
-        console.error('Lỗi khi lấy thông tin bạn bè:', error);
-        return null;
-      }
-    };
-
+    // Fetch data khi component mount
     const fetchData = async () => {
-      const friendsToChatList = [];
-      for (const friend of currentUser.friends || []) {
-        const friendDetail = await fetchFriendDetails(friend.friendId);
-        if (friendDetail) {
-          friendsToChatList.push({
-            id: friendDetail._id,
-            name: friendDetail.username,
-            lastMessage: '',
-            time: '',
+      try {
+        const token = localStorage.getItem("token");
+        const response = await axios.get('http://localhost:5000/api/conversation/conversation', {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+          },
+        });
+
+        const data = response.data.data || [];
+        const oneToOneChats = data.filter(convo => convo.members.length === 2);
+
+        const chatListFormatted = oneToOneChats.map(convo => {
+          const otherUser = convo.members.find(m => m._id !== currentUser._id);
+          return {
+            id: otherUser._id,
+            name: otherUser.username,
+            avatar: otherUser.avatarURL || '/static/images/avatar/default.jpg',
+            lastMessage: convo.lastMessage?.text || '',
+            time: new Date(convo.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             type: 'person',
-            avatar: friendDetail.avatarURL || '/static/images/avatar/default.jpg',
-            phoneNumber: friendDetail.phoneNumber,
-          });
-        }
+            phoneNumber: otherUser.phoneNumber,
+          };
+        });
+
+        // Cập nhật chatList nếu dữ liệu có thay đổi
+        setChatList(prevChatList => {
+          if (JSON.stringify(prevChatList) !== JSON.stringify(chatListFormatted)) {
+            return chatListFormatted;
+          }
+          return prevChatList;
+        });
+      } catch (error) {
+        console.error('Lỗi khi lấy danh sách hội thoại:', error);
       }
-      setChatList(friendsToChatList);
     };
 
     fetchData();
@@ -118,16 +127,17 @@ const Chat = () => {
       setChatList(updatedFriendsList);
     });
 
+    // Cleanup socket khi component unmount
     return () => {
       socket.off('updateFriendsList');
     };
-  }, [currentUser]);
+  }, []); // Chạy một lần khi component mount
 
   useEffect(() => {
     if (chatList.length) {
       localStorage.setItem('chatList', JSON.stringify(chatList));
     }
-  }, [chatList]);
+  }, [chatList]); // Lưu chatList vào localStorage khi có sự thay đổi
 
   const handleChatClick = (chat) => {
     setSelectedChat(chat);
