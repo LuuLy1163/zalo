@@ -1,9 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { styled } from '@mui/material/styles';
-import {
-    Box, AppBar, Toolbar, IconButton, Typography, List, ListItem, ListItemButton, ListItemIcon,
-    ListItemText, Avatar, TextField, InputAdornment, Tabs, Tab, Button
-} from '@mui/material';
+import { Box, AppBar, Toolbar, IconButton, Typography, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Avatar, TextField, InputAdornment, Tabs, Tab, Button } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import CloseIcon from '@mui/icons-material/Close';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
@@ -11,11 +8,10 @@ import AddFriend from './AddFriend';
 import { Scrollbar } from 'react-scrollbars-custom';
 import axios from 'axios';
 import ChatDetail from './ChatDetail';
+import io from 'socket.io-client';  // Import Socket.IO client
 
-const getInitialChatList = () => {
-    const storedChatList = localStorage.getItem('chatList');
-    return storedChatList ? JSON.parse(storedChatList) : [];
-};
+// Khởi tạo kết nối Socket.IO
+const socket = io('http://localhost:5000');  // Thay bằng URL của server của bạn
 
 const ChatListContainer = styled(Box)(({ theme }) => ({
     width: 350,
@@ -67,37 +63,34 @@ const Chat = () => {
     const [searchText, setSearchText] = useState('');
     const [tabValue, setTabValue] = useState(0);
     const [selectedChat, setSelectedChat] = useState(null);
+    const [chatList, setChatList] = useState([]);
     const [isSearching, setIsSearching] = useState(false);
     const [searchKeyword, setSearchKeyword] = useState('');
     const [searchResults, setSearchResults] = useState([]);
     const [isAddFriendModalOpen, setIsAddFriendModalOpen] = useState(false);
     const [selectedUserToAdd, setSelectedUserToAdd] = useState(null);
     const [friendRequestsSent, setFriendRequestsSent] = useState([]);
-    const [chatList, setChatList] = useState(getInitialChatList());
 
     const currentUser = JSON.parse(localStorage.getItem("user"));
     const currentUserPhone = currentUser?.phoneNumber || '';
 
+    // Lấy danh sách bạn bè từ server khi người dùng thay đổi hoặc load lại component
     useEffect(() => {
         if (currentUser && currentUser.friends && Array.isArray(currentUser.friends)) {
-            console.log('Dữ liệu bạn bè:', currentUser.friends);
-    
-            // Lấy thông tin chi tiết về bạn bè từ API hoặc database
             const fetchFriendDetails = async (friendId) => {
                 try {
-                    const response = await axios.get(`http://localhost:5000/api/auth/users/${friendId}`); // Giả sử có API này để lấy thông tin bạn bè
-                    return response.data; // Giả sử response.data chứa thông tin chi tiết của bạn
+                    const response = await axios.get(`http://localhost:5000/api/auth/users/${friendId}`);
+                    return response.data;
                 } catch (error) {
                     console.error('Lỗi khi lấy thông tin bạn bè:', error);
                     return null;
                 }
             };
-    
-            // Fetch chi tiết bạn bè và thêm vào chatList
-            const friendsToChatList = [];
+
             const fetchData = async () => {
+                const friendsToChatList = [];
                 for (const friend of currentUser.friends) {
-                    const friendDetail = await fetchFriendDetails(friend.friendId); // Lấy thông tin chi tiết của bạn
+                    const friendDetail = await fetchFriendDetails(friend.friendId);
                     if (friendDetail) {
                         friendsToChatList.push({
                             id: friendDetail._id,
@@ -110,47 +103,32 @@ const Chat = () => {
                         });
                     }
                 }
-    
-                // Cập nhật chatList, tránh trùng lặp
-                setChatList(prevList => {
-                    const existingIds = new Set(prevList.map(chat => chat.id));
-                    const merged = [
-                        ...friendsToChatList.filter(friend => !existingIds.has(friend.id)),
-                        ...prevList,
-                    ];
-                    return merged;
-                });
+                setChatList(friendsToChatList);  // Cập nhật chatList từ server
             };
-    
-            fetchData(); // Gọi hàm async để lấy dữ liệu
-        }
-    }, [currentUser]); // Chạy lại khi `currentUser` thay đổi
-    
 
-    // Lưu trữ `chatList` vào localStorage mỗi khi có sự thay đổi
+            fetchData();
+        }
+
+        // Lắng nghe sự kiện từ server để cập nhật chatList realtime
+        socket.on('updateFriendsList', (updatedFriendsList) => {
+            console.log('Cập nhật danh sách bạn bè mới:', updatedFriendsList);
+            setChatList(updatedFriendsList);
+        });
+
+        return () => {
+            socket.off('updateFriendsList');
+        };
+    }, [currentUser]);
+
+    // Lưu trữ chatList vào localStorage khi có thay đổi
     useEffect(() => {
         if (chatList.length) {
             localStorage.setItem('chatList', JSON.stringify(chatList));
         }
     }, [chatList]);
-    useEffect(() => {
-        console.log('Chat List sau khi cập nhật:', chatList); // Thêm dòng log này để kiểm tra
-    }, [chatList]);
-    
+
     const handleChatClick = (chat) => {
         setSelectedChat(chat);
-    };
-
-    const handleSearchChange = (event) => {
-        setSearchText(event.target.value);
-    };
-
-    const handleTabChange = (event, newValue) => {
-        setTabValue(newValue);
-    };
-
-    const handleBackToChatList = () => {
-        setSelectedChat(null);
     };
 
     const handleSearchInputChange = (event) => {
@@ -160,59 +138,27 @@ const Chat = () => {
     const handleStartSearch = async () => {
         setIsSearching(true);
         setSearchResults([]);
-
         try {
             const response = await axios.get(`http://localhost:5000/api/auth/searchphone?phoneNumber=${searchKeyword}`);
-
             if (response.status === 200) {
-                const data = response.data;
-                setSearchResults([data]);
-            } else if (response.status === 404) {
-                console.log('Không tìm thấy người dùng');
-                setSearchResults([]);
+                setSearchResults([response.data]);
             } else {
-                console.error('Lỗi tìm kiếm người dùng:', response.status, response.data);
                 setSearchResults([]);
             }
         } catch (error) {
-            console.error('Lỗi tìm kiếm người dùng (catch):', error);
             setSearchResults([]);
         }
-    };
-
-    const handleCloseSearch = () => {
-        setIsSearching(false);
-        setSearchKeyword('');
-        setSearchResults([]);
-    };
-
-    const handleOpenAddFriendModal = (user) => {
-        setSelectedUserToAdd(user);
-        setIsAddFriendModalOpen(true);
-    };
-
-    const handleCloseAddFriendModal = () => {
-        setIsAddFriendModalOpen(false);
-        setSelectedUserToAdd(null);
     };
 
     const handleAddFriend = async () => {
         if (selectedUserToAdd) {
             try {
-                const response = await fetch('http://localhost:5000/api/friend/request', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        senderPhone: currentUserPhone,
-                        receiverPhone: selectedUserToAdd.phoneNumber,
-                    }),
+                const response = await axios.post('http://localhost:5000/api/friend/request', {
+                    senderPhone: currentUserPhone,
+                    receiverPhone: selectedUserToAdd.phoneNumber,
                 });
 
-                if (response.ok) {
-                    setFriendRequestsSent(prev => [...prev, selectedUserToAdd._id]);
-                    handleCloseAddFriendModal();
+                if (response.status === 200) {
                     const newUserChat = {
                         id: selectedUserToAdd._id,
                         name: selectedUserToAdd.username,
@@ -221,32 +167,16 @@ const Chat = () => {
                         time: 'Vài giây trước',
                         type: 'person',
                     };
-                    setChatList(prev => {
-                        const alreadyInChat = prev.some(chat => chat.id === selectedUserToAdd._id);
-                        if (alreadyInChat) {
-                            return prev;
-                        }
-                        return [newUserChat, ...prev];
-                    });
+                    setChatList(prev => [newUserChat, ...prev]);  // Thêm vào đầu danh sách chat
                     setSelectedChat(newUserChat);
-                    console.log('Gửi yêu cầu kết bạn thành công');
-                } else {
-                    const errorData = await response.json();
-                    console.error('Lỗi gửi yêu cầu kết bạn:', errorData);
+
+                    socket.emit('updateFriendsList', [...chatList, newUserChat]);  // Phát sự kiện realtime lên server
                 }
             } catch (error) {
-                console.error('Lỗi gửi yêu cầu kết bạn (catch):', error);
+                console.error('Lỗi gửi yêu cầu kết bạn:', error);
             }
         }
     };
-
-    const checkIfFriendRequestSent = (userId) => {
-        return friendRequestsSent.includes(userId);
-    };
-
-    const filteredChats = chatList.filter((chat) =>
-        chat.name.toLowerCase().includes(searchText.toLowerCase())
-    );
 
     return (
         <Box sx={{ display: 'flex', height: '100%' }}>
@@ -254,7 +184,7 @@ const Chat = () => {
             <ChatListContainer>
                 <ChatListHeader position="static">
                     <Toolbar>
-                        <Tabs value={tabValue} onChange={handleTabChange} aria-label="chat tabs" sx={{ flexGrow: 1 }}>
+                        <Tabs value={tabValue} onChange={(e, newValue) => setTabValue(newValue)} aria-label="chat tabs" sx={{ flexGrow: 1 }}>
                             <HoverTab label="Tất cả" />
                             <HoverTab label="Chưa đọc" />
                         </Tabs>
@@ -279,7 +209,7 @@ const Chat = () => {
                             <PersonAddIcon />
                         </HoverIconButton>
                         {isSearching && (
-                            <HoverIconButton onClick={handleCloseSearch} sx={{ ml: 1 }}>
+                            <HoverIconButton onClick={() => { setIsSearching(false); setSearchKeyword(''); setSearchResults([]); }} sx={{ ml: 1 }}>
                                 <CloseIcon />
                             </HoverIconButton>
                         )}
@@ -293,12 +223,15 @@ const Chat = () => {
                                         variant="outlined"
                                         color="primary"
                                         size="small"
-                                        onClick={() => handleOpenAddFriendModal(user)}
-                                        disabled={checkIfFriendRequestSent(user._id) || user.phoneNumber === currentUserPhone}
+                                        onClick={() => {
+                                            setSelectedUserToAdd(user);
+                                            setIsAddFriendModalOpen(true);
+                                        }}
+                                        disabled={friendRequestsSent.includes(user._id) || user.phoneNumber === currentUserPhone}
                                     >
                                         {user.phoneNumber === currentUserPhone
                                             ? 'Bạn'
-                                            : checkIfFriendRequestSent(user._id)
+                                            : friendRequestsSent.includes(user._id)
                                                 ? 'Đã gửi'
                                                 : 'Thêm bạn bè'}
                                     </Button>
@@ -318,47 +251,41 @@ const Chat = () => {
                     )}
                 </ChatListHeader>
                 <ChatListContent>
-                <Scrollbar style={{ width: '100%', height: '100%' }}>
-    {filteredChats.map((chat) => (
-        <HoverListItemButton
-            key={chat.id}
-            selected={selectedChat?.id === chat.id}
-            onClick={() => handleChatClick(chat)}
-            alignItems="flex-start"
-        >
-            <ListItemIcon>
-                <Avatar src={chat.avatar} />
-            </ListItemIcon>
-            <ListItemText
-                primary={chat.name}
-                secondary={
-                    <React.Fragment>
-                        <Typography
-                            sx={{ display: 'inline' }}
-                            component="span"
-                            variant="body2"
-                            color="text.primary"
-                        >
-                            {chat.lastMessage}
-                        </Typography>
-                        {` — ${chat.time}`}
-                    </React.Fragment>
-                }
-            />
-        </HoverListItemButton>
-    ))}
-</Scrollbar>
-
+                    <Scrollbar style={{ width: '100%', height: '100%' }}>
+                        {chatList.filter(chat => chat.name.toLowerCase().includes(searchText.toLowerCase())).map((chat) => (
+                            <HoverListItemButton
+                                key={chat.id}
+                                selected={selectedChat?.id === chat.id}
+                                onClick={() => handleChatClick(chat)}
+                                alignItems="flex-start"
+                            >
+                                <ListItemIcon>
+                                    <Avatar src={chat.avatar} />
+                                </ListItemIcon>
+                                <ListItemText
+                                    primary={chat.name}
+                                    secondary={
+                                        <React.Fragment>
+                                            <Typography sx={{ display: 'inline' }} component="span" variant="body2" color="text.primary">
+                                                {chat.lastMessage}
+                                            </Typography>
+                                            {` — ${chat.time}`}
+                                        </React.Fragment>
+                                    }
+                                />
+                            </HoverListItemButton>
+                        ))}
+                    </Scrollbar>
                 </ChatListContent>
             </ChatListContainer>
 
             {/* Chat Detail Area (Right Side) */}
-            <ChatDetail selectedChat={selectedChat} onBackToChatList={handleBackToChatList} />
+            <ChatDetail selectedChat={selectedChat} onBackToChatList={() => setSelectedChat(null)} />
 
             {/* Add Friend Confirmation Modal */}
             <AddFriend
                 open={isAddFriendModalOpen}
-                onClose={handleCloseAddFriendModal}
+                onClose={() => setIsAddFriendModalOpen(false)}
                 onConfirm={handleAddFriend}
                 user={selectedUserToAdd}
             />
