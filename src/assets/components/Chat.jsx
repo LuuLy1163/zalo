@@ -75,11 +75,11 @@ const Chat = () => {
     const [isAddFriendModalOpen, setIsAddFriendModalOpen] = useState(false);
     const [selectedUserToAdd, setSelectedUserToAdd] = useState(null);
     const [friendRequestsSent, setFriendRequestsSent] = useState([]);
-    const [chatList, setChatList] = useState(getInitialChatList()); // Sử dụng getInitialChatList
+    const [chatList, setChatList] = useState(getInitialChatList());
 
-    const currentUserPhone = '0877896883';
+    const currentUser = JSON.parse(localStorage.getItem("user"));
+    const currentUserPhone = currentUser?.phoneNumber || '';
 
-    // Lưu chatList vào localStorage mỗi khi nó thay đổi
     useEffect(() => {
         localStorage.setItem('chatList', JSON.stringify(chatList));
     }, [chatList]);
@@ -159,7 +159,6 @@ const Chat = () => {
                         receiverPhone: selectedUserToAdd.phoneNumber,
                     }),
                 });
-                console.log('Response từ API gửi yêu cầu kết bạn:', response);
 
                 if (response.ok) {
                     setFriendRequestsSent(prev => [...prev, selectedUserToAdd._id]);
