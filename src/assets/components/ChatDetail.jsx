@@ -84,7 +84,7 @@ const ChatDetail = ({ selectedChat, onBackToChatList }) => {
         // Tham gia cuộc trò chuyện
         socket.current.emit('join_conversation', {
             senderId: currentUser._id,
-            rereceiveId: selectedChat._id, // đúng với BE
+            rereceiveId: selectedChat.id, // đúng với BE
         });
         
 
