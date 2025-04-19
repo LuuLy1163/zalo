@@ -78,7 +78,24 @@ const ChatDetail = ({ selectedChat, onBackToChatList }) => {
     const [anchorEl, setAnchorEl] = useState(null);
     const [selectedMessage, setSelectedMessage] = useState(null);
     const currentUser = JSON.parse(localStorage.getItem('user'));
-
+    useEffect(() => {
+        if (!socket.current) return;
+    
+        const handleReceive = (message) => {
+            // Đảm bảo đúng conversation
+            if (message.conversationId === conversationId) {
+                setMessages((prev) => [...prev, message]);
+            }
+        };
+    
+        socket.current.on('receive_message', handleReceive);
+    
+        return () => {
+            socket.current.off('receive_message', handleReceive);
+        };
+    }, [socket.current, conversationId]);
+    
+      
     useEffect(() => {
         if (!selectedChat || !currentUser) return;
 
@@ -97,14 +114,13 @@ const ChatDetail = ({ selectedChat, onBackToChatList }) => {
             fetchMessages(conversationId);
         });
 
-        socket.current.on('receive_message', (message) => {
-            setMessages((prev) => [...prev, message]);
-        });
-
         return () => {
-            socket.current.off('receive_message');
+            if (socket.current) {
+                socket.current.off('receive_message');
+            }
         };
     }, [selectedChat]);
+
 
     const fetchMessages = async (convId) => {
         try {
@@ -114,6 +130,7 @@ const ChatDetail = ({ selectedChat, onBackToChatList }) => {
             console.error('Lỗi tải tin nhắn:', err.response || err.message || err);
         }
     };
+
 
     const handleEmojiClick = (emojiData) => {
         setNewMessage((prev) => prev + emojiData.emoji);
