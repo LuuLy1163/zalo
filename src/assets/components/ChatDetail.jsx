@@ -79,10 +79,12 @@ const ChatDetail = ({ selectedChat, onBackToChatList }) => {
     const [selectedMessage, setSelectedMessage] = useState(null);
     const currentUser = JSON.parse(localStorage.getItem('user'));
     useEffect(() => {
-        if (!socket.current) return;
+        if (!socket.current) {
+            socket.current = io('http://localhost:5000');
+            socket.current.emit('joinUserRoom', currentUser._id);
+        }
     
         const handleReceive = (message) => {
-            // Đảm bảo đúng conversation
             if (message.conversationId === conversationId) {
                 setMessages((prev) => [...prev, message]);
             }
@@ -93,33 +95,30 @@ const ChatDetail = ({ selectedChat, onBackToChatList }) => {
         return () => {
             socket.current.off('receive_message', handleReceive);
         };
-    }, [socket.current, conversationId]);
+    }, [conversationId]);
+    
     
       
     useEffect(() => {
-        if (!selectedChat || !currentUser) return;
-
-        if (!socket.current) {
-            socket.current = io('http://localhost:5000');
-            socket.current.emit('joinUserRoom', currentUser._id);
-        }
-
+        if (!selectedChat || !currentUser || !socket.current) return;
+    
         socket.current.emit('join_conversation', {
             senderId: currentUser._id,
             rereceiveId: selectedChat.id,
         });
-
-        socket.current.on('joined_room', ({ conversationId }) => {
+    
+        const handleJoinRoom = ({ conversationId }) => {
             setConversationId(conversationId);
             fetchMessages(conversationId);
-        });
-
-        return () => {
-            if (socket.current) {
-                socket.current.off('receive_message');
-            }
         };
-    }, [selectedChat]);
+    
+        socket.current.on('joined_room', handleJoinRoom);
+    
+        return () => {
+            socket.current.off('joined_room', handleJoinRoom);
+        };
+    }, [selectedChat, currentUser]);
+    
 
 
     const fetchMessages = async (convId) => {
