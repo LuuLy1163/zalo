@@ -6,13 +6,15 @@ import {
 import { PhotoCamera } from '@mui/icons-material';
 import axios from 'axios';
 
-const CreateGroupModal = ({ open, onClose, onCreateGroupSuccess }) => {
+const CreateGroupModal = ({ open, onClose, onCreateGroupSuccess, socket }) => {
     const [groupName, setGroupName] = useState('');
     const [groupMembers, setGroupMembers] = useState([]);
     const [availableFriends, setAvailableFriends] = useState([]);
     const [groupImage, setGroupImage] = useState(null);
     const [groupImagePreview, setGroupImagePreview] = useState('');
     const currentUserId = JSON.parse(localStorage.getItem("user"))?._id;
+    const [isCreating, setIsCreating] = useState(false); // Thêm dòng này
+    const accessToken = localStorage.getItem("accessToken");
 
     useEffect(() => {
         const fetchFriends = async () => {
@@ -57,7 +59,7 @@ const CreateGroupModal = ({ open, onClose, onCreateGroupSuccess }) => {
     const handleGroupImageChange = (event) => {
         const file = event.target.files[0];
         if (file) {
-            setGroupImage(file);
+            setGroupImage({ uri: URL.createObjectURL(file), file }); // Cập nhật để lưu cả uri và file
             setGroupImagePreview(URL.createObjectURL(file));
         } else {
             setGroupImage(null);
@@ -66,7 +68,7 @@ const CreateGroupModal = ({ open, onClose, onCreateGroupSuccess }) => {
     };
 
     const handleCreateGroup = async () => {
-        console.log('Bắt đầu hàm handleCreateGroup');
+        if (isCreating) return;
 
         if (!groupName.trim()) {
             console.error('Tên nhóm không được để trống.');
@@ -77,49 +79,55 @@ const CreateGroupModal = ({ open, onClose, onCreateGroupSuccess }) => {
             return;
         }
 
+        setIsCreating(true);
+        let imageGroupUrl = null;
+
         try {
-            const token = localStorage.getItem("accessToken");
-            const membersArray = groupMembers.map(memberId => ({
-                userId: memberId,
-                role: 'member',
-                joinedAt: new Date()
-            }));
+            if (groupImage && groupImage.file) {
+                const fileType = groupImage.file.type.split('/')[1];
+                const formData = new FormData();
+                formData.append("avatarURL", groupImage.file, `group_avatar.${fileType}`);
 
-            membersArray.push({
-                userId: currentUserId,
-                role: 'admin',
-                joinedAt: new Date()
-            });
+                const uploadResponse = await axios.post(
+                    "http://localhost:5000/api/message/uploadimage",
+                    formData,
+                    {
+                        headers: {
+                            "Content-Type": "multipart/form-data",
+                            Authorization: `Bearer ${accessToken}`,
+                        },
+                    }
+                );
 
-            const response = await axios.post('http://localhost:5000/api/conversation/conversation', {
-                name: groupName,
-                type: 'group',
-                members: membersArray,
-                imageGroup: 'default_group_image_url'
-            }, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
-            });
-
-            console.log('Response từ backend:', response);
-
-            if (response.status === 201) {
-                console.log('Tạo nhóm thành công:', response.data);
-                onClose();
-                onCreateGroupSuccess();
-                setGroupName('');
-                setGroupMembers([]);
-                setGroupImage(null);
-                setGroupImagePreview('');
-            } else {
-                console.error('Lỗi tạo nhóm:', response);
+                if (uploadResponse.data.success) {
+                    imageGroupUrl = uploadResponse.data.data;
+                } else {
+                    console.error("Lỗi tải ảnh lên:", uploadResponse.data);
+                    setIsCreating(false);
+                    return;
+                }
             }
+
+            socket.emit("create_group", {
+                creatorId: currentUserId,
+                name: groupName.trim(),
+                imageGroup: imageGroupUrl,
+                members: groupMembers,
+            });
+
+            alert("Tạo nhóm thành công");
+            onClose();
+            onCreateGroupSuccess();
+            setGroupName('');
+            setGroupMembers([]);
+            setGroupImage(null);
+            setGroupImagePreview('');
+
         } catch (error) {
-            console.error('Lỗi tạo nhóm (catch block):', error);
+            setIsCreating(false);
+            console.error('Lỗi tạo nhóm:', error);
         } finally {
-            console.log('Kết thúc hàm handleCreateGroup');
+            setIsCreating(false);
         }
     };
 
@@ -136,20 +144,18 @@ const CreateGroupModal = ({ open, onClose, onCreateGroupSuccess }) => {
     };
 
     const imagePreviewStyle = {
-        width: 36, // Giảm kích thước avatar chọn ảnh
-        height: 36, // Giảm kích thước avatar chọn ảnh
+        width: 36,
+        height: 36,
         borderRadius: '50%',
         objectFit: 'cover',
-        marginRight: 8, // Giảm marginRight
+        marginRight: 8,
         backgroundColor: '#f0f0f0',
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
     };
 
-    const uploadButtonStyle = {
-        // Các style khác nếu cần
-    };
+    const uploadButtonStyle = {};
 
     const hiddenInput = {
         display: 'none',
@@ -158,7 +164,7 @@ const CreateGroupModal = ({ open, onClose, onCreateGroupSuccess }) => {
     const inputContainerStyle = {
         display: 'flex',
         alignItems: 'center',
-        marginBottom: 8, // Giảm margin dưới
+        marginBottom: 8,
     };
 
     return (
@@ -169,18 +175,18 @@ const CreateGroupModal = ({ open, onClose, onCreateGroupSuccess }) => {
             aria-describedby="modal-modal-description"
         >
             <Box sx={styledModal}>
-                <Typography id="modal-modal-title" variant="h6" component="h2" sx={{ mb: 1 }}> {/* Giảm margin dưới */}
+                <Typography id="modal-modal-title" variant="h6" component="h2" sx={{ mb: 1 }}>
                     Tạo nhóm mới
                 </Typography>
 
-                <Box sx={{ mb: 1 }}> {/* Giảm margin dưới của container chứa ảnh và tên */}
+                <Box sx={{ mb: 1 }}>
                     <Box sx={inputContainerStyle}>
                         <IconButton color="primary" aria-label="upload picture" component="label" sx={uploadButtonStyle}>
                             {groupImagePreview ? (
                                 <Avatar src={groupImagePreview} sx={imagePreviewStyle} />
                             ) : (
                                 <Avatar sx={imagePreviewStyle}>
-                                    <PhotoCamera sx={{ fontSize: 20 }} /> {/* Giảm kích thước icon camera */}
+                                    <PhotoCamera sx={{ fontSize: 20 }} />
                                 </Avatar>
                             )}
                             <input hidden accept="image/*" type="file" onChange={handleGroupImageChange} />
@@ -196,25 +202,25 @@ const CreateGroupModal = ({ open, onClose, onCreateGroupSuccess }) => {
                             onChange={handleGroupNameChange}
                             variant="outlined"
                             size="small"
-                            inputProps={{ style: { fontSize: '0.9rem', padding: '8px 12px' } }} // Giảm padding và font chữ input
-                            InputLabelProps={{ style: { fontSize: '0.9rem' } }} // Giảm font chữ label
+                            inputProps={{ style: { fontSize: '0.9rem', padding: '8px 12px' } }}
+                            InputLabelProps={{ style: { fontSize: '0.9rem' } }}
                         />
                     </Box>
                 </Box>
 
-                <Typography sx={{ mt: 1, mb: 0.5, fontSize: '0.95rem' }}>Chọn thành viên:</Typography> {/* Giảm margin và font chữ */}
-                <List sx={{ maxHeight: 250, overflow: 'auto', mb: 1, padding: 0 }}> {/* Giảm maxHeight và margin */}
+                <Typography sx={{ mt: 1, mb: 0.5, fontSize: '0.95rem' }}>Chọn thành viên:</Typography>
+                <List sx={{ maxHeight: 250, overflow: 'auto', mb: 1, padding: 0 }}>
                     {availableFriends.map((friend) => (
-                        <ListItem key={friend._id} sx={{ paddingY: 0.3 }}> {/* Giảm padding dọc */}
-                            <ListItemIcon sx={{ minWidth: 30 }}> {/* Giảm minWidth */}
-                                <Avatar src={friend.avatarURL || '/static/images/avatar/default.jpg'} sx={{ width: 28, height: 28 }} /> {/* Giảm kích thước avatar */}
+                        <ListItem key={friend._id} sx={{ paddingY: 0.3 }}>
+                            <ListItemIcon sx={{ minWidth: 30 }}>
+                                <Avatar src={friend.avatarURL || '/static/images/avatar/default.jpg'} sx={{ width: 28, height: 28 }} />
                             </ListItemIcon>
                             <ListItemText
-                                primaryTypographyProps={{ fontSize: '0.85rem' }} // Giảm kích thước font chữ primary
-                                secondaryTypographyProps={{ fontSize: '0.75rem' }} // Giảm kích thước font chữ secondary
+                                primaryTypographyProps={{ fontSize: '0.85rem' }}
+                                secondaryTypographyProps={{ fontSize: '0.75rem' }}
                                 primary={friend.username}
                                 secondary={friend.phoneNumber}
-                                sx={{ ml: 2 }} // Giảm margin trái
+                                sx={{ ml: 2 }}
                             />
                             <Checkbox
                                 checked={groupMembers.includes(friend._id)}
@@ -225,8 +231,8 @@ const CreateGroupModal = ({ open, onClose, onCreateGroupSuccess }) => {
                     ))}
                 </List>
                 <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
-                    <Button onClick={onClose} size="small">Hủy</Button> {/* Sử dụng size="small" cho button */}
-                    <Button variant="contained" onClick={handleCreateGroup} sx={{ ml: 1 }} size="small"> {/* Sử dụng size="small" cho button */}
+                    <Button onClick={onClose} size="small">Hủy</Button>
+                    <Button variant="contained" onClick={handleCreateGroup} sx={{ ml: 1 }} size="small">
                         Tạo nhóm
                     </Button>
                 </Box>

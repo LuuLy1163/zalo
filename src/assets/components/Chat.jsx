@@ -106,21 +106,32 @@ const Chat = () => {
                 headers: { Authorization: `Bearer ${token}` },
             });
             const data = response.data?.data || [];
-            const oneToOneChats = data.filter(convo => convo?.members?.length === 2);
-            const chatListFormatted = oneToOneChats.map(convo => {
-                const otherUserObject = convo.members.find(member => member.userId._id !== currentUserId);
-                const otherUser = otherUserObject ? otherUserObject.userId : null;
-                const conversationId = convo._id;
-                return otherUser ? {
-                    id: otherUser._id,
-                    name: otherUser.username,
-                    avatar: otherUser.avatarURL || '/static/images/avatar/default.jpg',
+            const chatListFormatted = data.map(convo => {
+                const isGroup = convo.type === 'group';
+                let chatInfo = {
+                    id: convo._id,
                     lastMessage: convo.lastMessage?.text || '',
                     time: convo.updatedAt ? new Date(convo.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
-                    type: 'person',
-                    phoneNumber: otherUser.phoneNumber,
-                    conversationId: conversationId,
-                } : null;
+                    type: convo.type,
+                    conversationId: convo._id,
+                };
+
+                if (isGroup) {
+                    chatInfo.name = convo.name;
+                    chatInfo.avatar = convo.imageGroup || '/static/images/avatar/default_group.png'; 
+                } else {
+                    const otherUserObject = convo.members.find(member => member.userId._id !== currentUserId);
+                    const otherUser = otherUserObject ? otherUserObject.userId : null;
+                    if (otherUser) {
+                        chatInfo.id = otherUser._id;
+                        chatInfo.name = otherUser.username;
+                        chatInfo.avatar = otherUser.avatarURL || '/static/images/avatar/default.jpg';
+                        chatInfo.phoneNumber = otherUser.phoneNumber;
+                    } else {
+                        return null; 
+                    }
+                }
+                return chatInfo;
             }).filter(chat => chat !== null);
             setChatList(chatListFormatted);
         } catch (error) {
@@ -302,11 +313,12 @@ const Chat = () => {
             />
 
             <CreateGroupModal
-                open={isCreateGroupModalOpen}
-                onClose={handleCloseCreateGroupModal}
-                onCreateGroupSuccess={handleCreateGroupSuccess}
-                availableFriends={availableFriends}
-            />
+                    open={isCreateGroupModalOpen}
+                    onClose={handleCloseCreateGroupModal}
+                    onCreateGroupSuccess={handleCreateGroupSuccess}
+                    availableFriends={availableFriends}
+                    socket={socket.current} 
+                />
         </Box>
     );
 };
