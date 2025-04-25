@@ -9,6 +9,7 @@ import PersonAddAlt1Icon from '@mui/icons-material/PersonAddAlt1';
 import GroupAddIcon from '@mui/icons-material/GroupAdd';
 import FriendList from './FriendsList';
 import FriendRequestPanel from './FriendRequestPanel';
+import GroupListPanel from './GroupListPanel';
 
 function TabPanel(props) {
   const { children, value, index, sx = {}, ...other } = props;
@@ -58,7 +59,7 @@ export default function VerticalTabs() {
       sx={{
         display: 'flex',
         width: '100%',
-        height: '100vh',
+        height: '100%',
         overflow: 'hidden',
         bgcolor: 'background.paper'
       }}
@@ -85,7 +86,7 @@ export default function VerticalTabs() {
         <FriendList />
       </TabPanel>
       <TabPanel value={value} index={1}>
-        <FriendRequestPanel />
+        <GroupListPanel />
       </TabPanel>
       <TabPanel value={value} index={2}>
       <FriendRequestPanel />

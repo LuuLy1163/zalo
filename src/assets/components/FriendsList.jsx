@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import {
     Avatar, Box, InputBase, List, ListItem, ListItemAvatar, ListItemText,
     Typography, MenuItem, Select, FormControl, IconButton, Menu, Dialog,
-    DialogTitle, DialogContent, DialogActions, Button, CircularProgress
+    Button, CircularProgress
 } from "@mui/material";
 import { Search, MoreVert } from "@mui/icons-material";
 import Grid from '@mui/material/Grid';
@@ -33,8 +33,10 @@ export default function FriendList() {
     const [friends, setFriends] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [filterOption, setFilterOption] = useState('all');
 
-    const accessToken = localStorage.getItem("accessToken"); // Lấy token với key 'accessToken'
+    const accessToken = localStorage.getItem("accessToken");
 
     useEffect(() => {
         const loadFriendData = async () => {
@@ -46,7 +48,7 @@ export default function FriendList() {
 
             try {
                 const data = await fetchFriendData(accessToken);
-                setFriends(data.acceptedFriends); // Giả sử API trả về acceptedFriends
+                setFriends(data.acceptedFriends);
                 setLoading(false);
             } catch (err) {
                 setError("Lỗi khi tải danh sách bạn bè.");
@@ -76,6 +78,28 @@ export default function FriendList() {
         setOpenDialog(false);
     };
 
+    const handleSearchChange = (event) => {
+        setSearchQuery(event.target.value);
+    };
+
+    const handleFilterChange = (event) => {
+        setFilterOption(event.target.value);
+    };
+
+    const filteredFriends = friends.filter(friend => {
+        const searchMatch = friend.username.toLowerCase().includes(searchQuery.toLowerCase());
+        let filterMatch = true;
+
+        if (filterOption === 'online') {
+            // Giả sử bạn có thuộc tính 'isOnline' trong dữ liệu bạn bè
+            filterMatch = friend.isOnline;
+        } else if (filterOption === 'offline') {
+            filterMatch = !friend.isOnline;
+        }
+
+        return searchMatch && filterMatch;
+    });
+
     if (loading) {
         return (
             <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
@@ -93,17 +117,22 @@ export default function FriendList() {
     }
 
     return (
-        <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center', padding: 3 }}>
-            <Box sx={{ width: '100%', maxWidth: 600 }}> {/* Giới hạn chiều rộng */}
+        <Box sx={{ width: '100%', display: 'flex' }}> {/* Loại bỏ justifyContent và padding */}
+            <Box sx={{ flexGrow: 1, p: 3 }}> {/* Sử dụng flexGrow để chiếm không gian */}
                 <Typography variant="h6" gutterBottom>
-                    Bạn bè ({friends.length})
+                    Bạn bè ({filteredFriends.length})
                 </Typography>
 
                 {/* Search + Filter */}
                 <Box sx={{ display: "flex", gap: 2, alignItems: "center", mb: 2 }}>
                     <Box sx={{ display: "flex", alignItems: "center", flex: 1, p: 1, border: "1px solid #ccc", borderRadius: 2 }}>
                         <Search sx={{ mr: 1 }} />
-                        <InputBase placeholder="Tìm bạn" fullWidth />
+                        <InputBase
+                            placeholder="Tìm bạn"
+                            fullWidth
+                            value={searchQuery}
+                            onChange={handleSearchChange}
+                        />
                     </Box>
                     <FormControl size="small">
                         <Select defaultValue="az">
@@ -112,15 +141,18 @@ export default function FriendList() {
                         </Select>
                     </FormControl>
                     <FormControl size="small">
-                        <Select defaultValue="all">
+                        <Select value={filterOption} onChange={handleFilterChange}>
                             <MenuItem value="all">Tất cả</MenuItem>
+                            {/* Thêm các tùy chọn lọc khác nếu cần */}
+                            {/* <MenuItem value="online">Đang hoạt động</MenuItem> */}
+                            {/* <MenuItem value="offline">Không hoạt động</MenuItem> */}
                         </Select>
                     </FormControl>
                 </Box>
 
                 {/* Danh sách bạn */}
                 <List>
-                    {friends.map((friend, index) => (
+                    {filteredFriends.map((friend, index) => (
                         <ListItem
                             key={friend._id}
                             divider
@@ -129,6 +161,7 @@ export default function FriendList() {
                                     <MoreVert />
                                 </IconButton>
                             }
+                            sx={{ cursor: 'pointer', alignItems: 'center' }}
                         >
                             <ListItemAvatar>
                                 <Avatar src={friend.avatarURL || "/static/images/avatar/default.jpg"} />
@@ -149,7 +182,7 @@ export default function FriendList() {
 
                 <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth={false} PaperProps={{
                     sx: {
-                        width: 400, // Ốm hơn
+                        width: 400,
                         borderRadius: 3,
                         overflow: "hidden",
                     }
@@ -159,8 +192,8 @@ export default function FriendList() {
 
                             {/* Ảnh bìa */}
                             <Box sx={{
-                                height: 180, // Cao hơn
-                                backgroundImage: `url(https://source.unsplash.com/random)`, // Thay bằng URL ảnh bìa thật nếu có
+                                height: 180,
+                                backgroundImage: `url(https://source.unsplash.com/random)`,
                                 backgroundSize: "cover",
                                 backgroundPosition: "center",
                             }} />
@@ -190,8 +223,6 @@ export default function FriendList() {
                             </Box>
 
                             <Box sx={{ px: 3, py: 2 }}>
-
-
                                 <Grid container spacing={2}>
                                     <Grid item xs={12}>
                                         <Typography variant="body4" fontWeight="bold" gutterBottom>Thông tin cá nhân</Typography>
@@ -230,7 +261,6 @@ export default function FriendList() {
                                 </Grid>
                             </Box>
 
-
                             <Box sx={{ px: 3, pb: 2 }}>
                                 <Typography variant="subtitle2" fontWeight="bold" gutterBottom>Hình ảnh</Typography>
                                 <Typography variant="body2" color="text.secondary" sx={{ fontStyle: "italic" }}>Chưa có ảnh nào được chia sẻ</Typography>
@@ -266,9 +296,7 @@ export default function FriendList() {
                                         Chia sẻ danh thiếp
                                     </Button>
                                 </Box>
-
                             </Box>
-
 
                             <Box sx={{ px: 3, py: 2, textAlign: "right" }}>
                                 <Button onClick={handleCloseDialog} size="small">Đóng</Button>
@@ -276,8 +304,6 @@ export default function FriendList() {
                         </Box>
                     )}
                 </Dialog>
-
-
             </Box>
         </Box>
     );
