@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { styled } from '@mui/material/styles';
 import {
-  Box, AppBar, Toolbar, IconButton, Typography, List, ListItem,
-  ListItemButton, ListItemIcon, ListItemText, Avatar, TextField,
-  InputAdornment, Tabs, Tab, Button
+    Box, AppBar, Toolbar, IconButton, Typography, List, ListItem,
+    ListItemButton, ListItemIcon, ListItemText, Avatar, TextField,
+    InputAdornment, Tabs, Tab, Button,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import CloseIcon from '@mui/icons-material/Close';
@@ -12,9 +12,9 @@ import AddFriend from './AddFriend';
 import { Scrollbar } from 'react-scrollbars-custom';
 import axios from 'axios';
 import ChatDetail from './ChatDetail';
+import CreateGroupModal from './CreateGroupModal';
 import io from 'socket.io-client';
-
-const socket = io('http://localhost:5000');
+import PeopleIcon from '@mui/icons-material/People';
 
 const ChatListContainer = styled(Box)(({ theme }) => ({
   width: 350,
@@ -42,268 +42,285 @@ const ChatListContent = styled(Box)(({ theme }) => ({
 
 const HoverIconButton = styled(IconButton)(({ theme }) => ({
   '&:hover': {
-    backgroundColor: theme.palette.primary.light,
+      backgroundColor: theme.palette.primary.light,
   },
 }));
 
 const HoverListItemButton = styled(ListItemButton)(({ theme }) => ({
   '&:hover': {
-    backgroundColor: theme.palette.primary.light,
+      backgroundColor: theme.palette.primary.light,
   },
   '&.Mui-selected': {
-    backgroundColor: theme.palette.primary.main,
-    color: theme.palette.text.secondary,
+      backgroundColor: theme.palette.primary.main,
+      color: theme.palette.text.secondary,
   },
 }));
 
 const HoverTab = styled(Tab)(({ theme }) => ({
   '&:hover': {
-    backgroundColor: theme.palette.primary.light,
+      backgroundColor: theme.palette.primary.light,
   },
 }));
 
 const Chat = () => {
-  const [searchText, setSearchText] = useState('');
-  const [tabValue, setTabValue] = useState(0);
-  const [selectedChat, setSelectedChat] = useState(null);
-  const [chatList, setChatList] = useState([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [searchKeyword, setSearchKeyword] = useState('');
-  const [searchResults, setSearchResults] = useState([]);
-  const [isAddFriendModalOpen, setIsAddFriendModalOpen] = useState(false);
-  const [selectedUserToAdd, setSelectedUserToAdd] = useState(null);
-  const [friendRequestsSent, setFriendRequestsSent] = useState([]);
+    const [searchText, setSearchText] = useState('');
+    const [tabValue, setTabValue] = useState(0);
+    const [selectedChat, setSelectedChat] = useState(null);
+    const [chatList, setChatList] = useState([]);
+    const [isSearching, setIsSearching] = useState(false);
+    const [searchKeyword, setSearchKeyword] = useState('');
+    const [searchResults, setSearchResults] = useState([]);
+    const [isAddFriendModalOpen, setIsAddFriendModalOpen] = useState(false);
+    const [selectedUserToAdd, setSelectedUserToAdd] = useState(null);
+    const [friendRequestsSent, setFriendRequestsSent] = useState([]);
+    const [currentConversationId, setCurrentConversationId] = useState(null);
+    const socket = useRef();
+    const [isCreateGroupModalOpen, setIsCreateGroupModalOpen] = useState(false); 
+    const [availableFriends, setAvailableFriends] = useState([]);
 
-  const currentUser = JSON.parse(localStorage.getItem("user"));
-  const currentUserPhone = currentUser?.phoneNumber || '';
+    const currentUser = JSON.parse(localStorage.getItem("user"));
+    const currentUserId = currentUser?._id;
+    const currentUserPhone = currentUser?.phoneNumber || '';
 
-  useEffect(() => {
-    if (currentUser && currentUser._id) {
-      socket.emit('joinUserRoom', currentUser._id); // ✅ Join room của user
-    }
-
-    // Fetch data khi component mount
-    const fetchData = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        const response = await axios.get('http://localhost:5000/api/conversation/conversation', {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-          },
-        });
-
-        const data = response.data.data || [];
-        const oneToOneChats = data.filter(convo => convo.members.length === 2);
-
-        const chatListFormatted = oneToOneChats.map(convo => {
-          const otherUser = convo.members.find(m => m._id !== currentUser._id);
-          return {
-            id: otherUser._id,
-            name: otherUser.username,
-            avatar: otherUser.avatarURL || '/static/images/avatar/default.jpg',
-            lastMessage: convo.lastMessage?.text || '',
-            time: new Date(convo.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            type: 'person',
-            phoneNumber: otherUser.phoneNumber,
-          };
-        });
-
-        // Cập nhật chatList nếu dữ liệu có thay đổi
-        setChatList(prevChatList => {
-          if (JSON.stringify(prevChatList) !== JSON.stringify(chatListFormatted)) {
-            return chatListFormatted;
-          }
-          return prevChatList;
-        });
-      } catch (error) {
-        console.error('Lỗi khi lấy danh sách hội thoại:', error);
-      }
-    };
-
-    fetchData();
-
-    socket.on('updateFriendsList', (updatedFriendsList) => {
-      console.log('Cập nhật danh sách bạn bè mới:', updatedFriendsList);
-      setChatList(updatedFriendsList);
-    });
-
-    // Cleanup socket khi component unmount
-    return () => {
-      socket.off('updateFriendsList');
-    };
-  }, []); // Chạy một lần khi component mount
-
-  useEffect(() => {
-    if (chatList.length) {
-      localStorage.setItem('chatList', JSON.stringify(chatList));
-    }
-  }, [chatList]); // Lưu chatList vào localStorage khi có sự thay đổi
-
-  const handleChatClick = (chat) => {
-    setSelectedChat(chat);
-  };
-
-  const handleSearchInputChange = (event) => {
-    setSearchKeyword(event.target.value);
-  };
-
-  const handleStartSearch = async () => {
-    setIsSearching(true);
-    setSearchResults([]);
-    try {
-      const response = await axios.get(`http://localhost:5000/api/auth/searchphone?phoneNumber=${searchKeyword}`);
-      if (response.status === 200) {
-        setSearchResults([response.data]);
-      } else {
-        setSearchResults([]);
-      }
-    } catch (error) {
-      setSearchResults([]);
-    }
-  };
-
-  const handleAddFriend = async () => {
-    if (selectedUserToAdd) {
-      try {
-        const response = await axios.post('http://localhost:5000/api/friend/request', {
-          senderPhone: currentUserPhone,
-          receiverPhone: selectedUserToAdd.phoneNumber,
-        });
-
-        if (response.status === 200) {
-          const newUserChat = {
-            id: selectedUserToAdd._id,
-            name: selectedUserToAdd.username,
-            avatar: selectedUserToAdd.avatarURL || '/static/images/avatar/default.jpg',
-            lastMessage: 'Đã gửi lời mời kết bạn',
-            time: 'Vài giây trước',
-            type: 'person',
-            phoneNumber: selectedUserToAdd.phoneNumber
-          };
-
-          setChatList(prev => [newUserChat, ...prev]);
-          setSelectedChat(newUserChat);
-
-          socket.emit('update_friends', { userId: currentUser._id }); // ✅ Gửi sự kiện cập nhật bạn bè realtime
+    useEffect(() => {
+        socket.current = io('http://localhost:5000');
+        if (currentUser && currentUserId) {
+            socket.current.emit('joinUserRoom', currentUserId);
         }
-      } catch (error) {
-        console.error('Lỗi gửi yêu cầu kết bạn:', error);
-      }
-    }
-  };
+        fetchData();
+        return () => {
+            socket.current.disconnect();
+        };
+    }, [currentUserId]);
 
-  return (
-    <Box sx={{ display: 'flex', height: '100%' }}>
-      <ChatListContainer>
-        <ChatListHeader position="static">
-          <Toolbar>
-            <Tabs value={tabValue} onChange={(e, newValue) => setTabValue(newValue)} aria-label="chat tabs" sx={{ flexGrow: 1 }}>
-              <HoverTab label="Tất cả" />
-              <HoverTab label="Chưa đọc" />
-            </Tabs>
-          </Toolbar>
-          <Box sx={{ p: 2, display: 'flex', alignItems: 'center' }}>
-            <TextField
-              fullWidth
-              variant="outlined"
-              size="small"
-              placeholder="Tìm kiếm bằng số điện thoại"
-              value={searchKeyword}
-              onChange={handleSearchInputChange}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon />
-                  </InputAdornment>
-                ),
-              }}
+    useEffect(() => {
+        if (chatList.length) {
+            localStorage.setItem('chatList', JSON.stringify(chatList));
+        }
+    }, [chatList]);
+
+    const fetchData = async () => {
+        try {
+            const token = localStorage.getItem("accessToken");
+            const response = await axios.get('http://localhost:5000/api/conversation/conversation', {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            const data = response.data?.data || [];
+            const chatListFormatted = data.map(convo => {
+                const isGroup = convo.type === 'group';
+                let chatInfo = {
+                    id: convo._id,
+                    lastMessage: convo.lastMessage?.text || '',
+                    time: convo.updatedAt ? new Date(convo.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
+                    type: convo.type,
+                    conversationId: convo._id,
+                };
+
+                if (isGroup) {
+                    chatInfo.name = convo.name;
+                    chatInfo.avatar = convo.imageGroup || '/static/images/avatar/default_group.png'; 
+                } else {
+                    const otherUserObject = convo.members.find(member => member.userId._id !== currentUserId);
+                    const otherUser = otherUserObject ? otherUserObject.userId : null;
+                    if (otherUser) {
+                        chatInfo.id = otherUser._id;
+                        chatInfo.name = otherUser.username;
+                        chatInfo.avatar = otherUser.avatarURL || '/static/images/avatar/default.jpg';
+                        chatInfo.phoneNumber = otherUser.phoneNumber;
+                    } else {
+                        return null; 
+                    }
+                }
+                return chatInfo;
+            }).filter(chat => chat !== null);
+            setChatList(chatListFormatted);
+        } catch (error) {
+            console.error('Lỗi khi lấy danh sách hội thoại:', error);
+        }
+    };
+
+    const handleChatClick = (chat) => {
+        setSelectedChat(chat);
+        setCurrentConversationId(chat.conversationId);
+    };
+
+    const handleSearchInputChange = (event) => {
+        setSearchKeyword(event.target.value);
+    };
+
+    const handleStartSearch = async () => {
+        setIsSearching(true);
+        setSearchResults([]);
+        try {
+            const response = await axios.get(`http://localhost:5000/api/auth/searchphone?phoneNumber=${searchKeyword}`);
+            if (response.status === 200) {
+                setSearchResults([response.data]);
+            } else {
+                setSearchResults([]);
+            }
+        } catch (error) {
+            setSearchResults([]);
+        }
+    };
+
+    const handleOpenGroupCreation = () => {
+        setIsCreateGroupModalOpen(true); // Mở modal từ component Chat
+    };
+
+    const handleCloseCreateGroupModal = () => {
+        setIsCreateGroupModalOpen(false); // Đóng modal từ component Chat
+    };
+
+    const handleCreateGroupSuccess = () => {
+        fetchData(); // Gọi lại fetchData để cập nhật danh sách chat
+    };
+
+    const handleAddFriend = async () => {
+        if (selectedUserToAdd) {
+            try {
+                const response = await axios.post('http://localhost:5000/api/friend/request', {
+                    senderPhone: currentUserPhone,
+                    receiverPhone: selectedUserToAdd.phoneNumber,
+                }, {
+                    headers: { Authorization: `Bearer ${localStorage.getItem("accessToken")}` },
+                });
+
+                if (response.status === 200) {
+                    setFriendRequestsSent(prev => [...prev, selectedUserToAdd._id]);
+                    setIsSearching(false);
+                    setSearchKeyword('');
+                    setSearchResults([]);
+                    setIsAddFriendModalOpen(false);
+                }
+            } catch (error) {
+                console.error('Lỗi gửi yêu cầu kết bạn:', error);
+            }
+        }
+    };
+
+    return (
+        <Box sx={{ display: 'flex', height: '100%' }}>
+            <ChatListContainer>
+                <ChatListHeader position="static">
+                    <Toolbar>
+                        <Tabs value={tabValue} onChange={(e, newValue) => setTabValue(newValue)} aria-label="chat tabs" sx={{ flexGrow: 1 }}>
+                            <HoverTab label="Tất cả" />
+                            <HoverTab label="Chưa đọc" />
+                        </Tabs>
+                    </Toolbar>
+                    <Box sx={{ p: 2, display: 'flex', alignItems: 'center' }}>
+                        <TextField
+                            fullWidth
+                            variant="outlined"
+                            size="small"
+                            placeholder="Tìm kiếm bằng số điện thoại"
+                            value={searchKeyword}
+                            onChange={handleSearchInputChange}
+                            InputProps={{
+                                startAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment>,
+                            }}
+                        />
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <HoverIconButton onClick={handleStartSearch} sx={{ ml: 1 }}>
+                                <PersonAddIcon />
+                            </HoverIconButton>
+                            <HoverIconButton onClick={handleOpenGroupCreation} sx={{ ml: 1 }}>
+                                <PeopleIcon />
+                            </HoverIconButton>
+                            {isSearching && (
+                                <HoverIconButton onClick={() => { setIsSearching(false); setSearchKeyword(''); setSearchResults([]); }} sx={{ ml: 1 }}>
+                                    <CloseIcon />
+                                </HoverIconButton>
+                            )}
+                        </Box>
+                    </Box>
+                    {isSearching && searchResults.length > 0 && (
+                        <List>
+                            {searchResults.map((user) => (
+                                <ListItem key={user?._id} alignItems="center" secondaryAction={
+                                    <Button
+                                        variant="outlined"
+                                        color="primary"
+                                        size="small"
+                                        onClick={() => {
+                                            setSelectedUserToAdd(user);
+                                            setIsAddFriendModalOpen(true);
+                                        }}
+                                        disabled={friendRequestsSent.includes(user?._id) || user?.phoneNumber === currentUserPhone}
+                                    >
+                                        {user?.phoneNumber === currentUserPhone
+                                            ? 'Bạn'
+                                            : friendRequestsSent.includes(user?._id)
+                                                ? 'Đã gửi'
+                                                : 'Thêm bạn bè'}
+                                    </Button>
+                                }>
+                                    <ListItemIcon>
+                                        <Avatar src={user?.avatarURL || '/static/images/avatar/default.jpg'} />
+                                    </ListItemIcon>
+                                    <ListItemText primary={user?.username} secondary={user?.phoneNumber} />
+                                </ListItem>
+                            ))}
+                        </List>
+                    )}
+                    {isSearching && searchResults.length === 0 && searchKeyword && (
+                        <Box sx={{ p: 2, textAlign: 'center' }}>
+                            <Typography color="textSecondary">Không tìm thấy người dùng</Typography>
+                        </Box>
+                    )}
+                </ChatListHeader>
+                <ChatListContent>
+                    <Scrollbar style={{ width: '100%', height: '100%' }}>
+                        {chatList.filter(chat => chat?.name?.toLowerCase().includes(searchText.toLowerCase())).map((chat) => (
+                            <HoverListItemButton
+                                key={chat?.id}
+                                selected={selectedChat?.id === chat?.id}
+                                onClick={() => handleChatClick(chat)}
+                                alignItems="flex-start"
+                            >
+                                <ListItemIcon>
+                                    <Avatar src={chat?.avatar} />
+                                </ListItemIcon>
+                                <ListItemText
+                                    primary={chat?.name}
+                                    secondary={
+                                        <React.Fragment>
+                                            <Typography sx={{ display: 'inline' }} component="span" variant="body2" color="text.primary">
+                                                {chat?.lastMessage}
+                                            </Typography>
+                                            {` — ${chat?.time}`}
+                                        </React.Fragment>
+                                    }
+                                />
+                            </HoverListItemButton>
+                        ))}
+                    </Scrollbar>
+                </ChatListContent>
+            </ChatListContainer>
+
+            <ChatDetail
+                selectedChat={selectedChat}
+                onBackToChatList={() => setSelectedChat(null)}
+                conversationId={currentConversationId}
+                socket={socket.current}
             />
-            <HoverIconButton onClick={handleStartSearch} sx={{ ml: 1 }}>
-              <PersonAddIcon />
-            </HoverIconButton>
-            {isSearching && (
-              <HoverIconButton onClick={() => { setIsSearching(false); setSearchKeyword(''); setSearchResults([]); }} sx={{ ml: 1 }}>
-                <CloseIcon />
-              </HoverIconButton>
-            )}
-          </Box>
 
-          {isSearching && searchResults.length > 0 && (
-            <List>
-              {searchResults.map((user) => (
-                <ListItem key={user._id} alignItems="center" secondaryAction={
-                  <Button
-                    variant="outlined"
-                    color="primary"
-                    size="small"
-                    onClick={() => {
-                      setSelectedUserToAdd(user);
-                      setIsAddFriendModalOpen(true);
-                    }}
-                    disabled={friendRequestsSent.includes(user._id) || user.phoneNumber === currentUserPhone}
-                  >
-                    {user.phoneNumber === currentUserPhone
-                      ? 'Bạn'
-                      : friendRequestsSent.includes(user._id)
-                        ? 'Đã gửi'
-                        : 'Thêm bạn bè'}
-                  </Button>
-                }>
-                  <ListItemIcon>
-                    <Avatar src={user.avatarURL || '/static/images/avatar/default.jpg'} />
-                  </ListItemIcon>
-                  <ListItemText primary={user.username} secondary={user.phoneNumber} />
-                </ListItem>
-              ))}
-            </List>
-          )}
+            <AddFriend
+                open={isAddFriendModalOpen}
+                onClose={() => setIsAddFriendModalOpen(false)}
+                onConfirm={handleAddFriend}
+                user={selectedUserToAdd}
+            />
 
-          {isSearching && searchResults.length === 0 && searchKeyword && (
-            <Box sx={{ p: 2, textAlign: 'center' }}>
-              <Typography color="textSecondary">Không tìm thấy người dùng</Typography>
-            </Box>
-          )}
-        </ChatListHeader>
-
-        <ChatListContent>
-          <Scrollbar style={{ width: '100%', height: '100%' }}>
-            {chatList.filter(chat => chat.name.toLowerCase().includes(searchText.toLowerCase())).map((chat) => (
-              <HoverListItemButton
-                key={chat.id}
-                selected={selectedChat?.id === chat.id}
-                onClick={() => handleChatClick(chat)}
-                alignItems="flex-start"
-              >
-                <ListItemIcon>
-                  <Avatar src={chat.avatar} />
-                </ListItemIcon>
-                <ListItemText
-                  primary={chat.name}
-                  secondary={
-                    <React.Fragment>
-                      <Typography sx={{ display: 'inline' }} component="span" variant="body2" color="text.primary">
-                        {chat.lastMessage}
-                      </Typography>
-                      {` — ${chat.time}`}
-                    </React.Fragment>
-                  }
+            <CreateGroupModal
+                    open={isCreateGroupModalOpen}
+                    onClose={handleCloseCreateGroupModal}
+                    onCreateGroupSuccess={handleCreateGroupSuccess}
+                    availableFriends={availableFriends}
+                    socket={socket.current} 
                 />
-              </HoverListItemButton>
-            ))}
-          </Scrollbar>
-        </ChatListContent>
-      </ChatListContainer>
-
-      <ChatDetail selectedChat={selectedChat} onBackToChatList={() => setSelectedChat(null)} />
-
-      <AddFriend
-        open={isAddFriendModalOpen}
-        onClose={() => setIsAddFriendModalOpen(false)}
-        onConfirm={handleAddFriend}
-        user={selectedUserToAdd}
-      />
-    </Box>
-  );
+        </Box>
+    );
 };
 
 export default Chat;
