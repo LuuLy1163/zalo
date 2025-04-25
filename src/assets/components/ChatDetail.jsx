@@ -80,7 +80,7 @@ const ChatDetail = ({ selectedChat, onBackToChatList }) => {
     const currentUser = JSON.parse(localStorage.getItem('user'));
     useEffect(() => {
         if (!socket.current) {
-            socket.current = io('http://localhost:5000');
+            socket.current = io('ws://localhost:5000'); 
             socket.current.emit('joinUserRoom', currentUser._id);
         }
     
@@ -101,23 +101,29 @@ const ChatDetail = ({ selectedChat, onBackToChatList }) => {
       
     useEffect(() => {
         if (!selectedChat || !currentUser || !socket.current) return;
-    
-        socket.current.emit('join_conversation', {
-            senderId: currentUser._id,
-            rereceiveId: selectedChat.id,
-        });
-    
+   
+        // Đảm bảo chỉ gọi join_conversation khi cần thiết
+        if (conversationId !== selectedChat.id) {
+            socket.current.emit('join_conversation', {
+                senderId: currentUser._id,
+                rereceiveId: selectedChat.id,
+            });
+   
+            setConversationId(selectedChat.id);  // Cập nhật conversationId để tránh gọi lại
+        }
+   
         const handleJoinRoom = ({ conversationId }) => {
             setConversationId(conversationId);
             fetchMessages(conversationId);
         };
-    
+   
         socket.current.on('joined_room', handleJoinRoom);
-    
+   
         return () => {
             socket.current.off('joined_room', handleJoinRoom);
         };
-    }, [selectedChat, currentUser]);
+    }, [selectedChat, currentUser, conversationId]);
+   
     
 
 
@@ -275,7 +281,8 @@ socket.current.emit("sendMessage", {
     }
 
     return (
-        <ChatDetailContainer>
+            
+            <ChatDetailContainer>
             <ChatDetailHeader>
                 <HoverIconButton color="inherit" onClick={onBackToChatList}>
                     <ArrowBackIcon />
@@ -283,11 +290,17 @@ socket.current.emit("sendMessage", {
                 <Avatar src={selectedChat.avatar} sx={{ mr: 2 }} />
                 <Typography variant="h6">{selectedChat.name}</Typography>
                 <Box sx={{ flexGrow: 1 }} />
+                {selectedChat.type === 'person' && (
+                    <>
+                        <HoverIconButton color="inherit"><CallIcon /></HoverIconButton>
+                        <HoverIconButton color="inherit"><VideocamIcon /></HoverIconButton>
+                        <HoverIconButton color="inherit"><PersonAddIcon /></HoverIconButton>
+                    </>
+                )}
                 <HoverIconButton color="inherit">
                     <MoreVertIcon />
                 </HoverIconButton>
             </ChatDetailHeader>
-
             <ChatDetailBody>
                 <Scrollbar style={{ width: '100%', height: '100%' }}>
                 {messages.map((msg, index) => {
