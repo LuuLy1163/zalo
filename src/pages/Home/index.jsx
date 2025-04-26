@@ -48,7 +48,7 @@ function DemoPageContent({ pathname }) {
     case '/chat':    content = <ChatPage />;    break;
     case '/contact': content = <ContactPage />; break;
     default:
-      content = <Typography>Chưa có nội dung cho trang này</Typography>;
+      content = <ChatPage />;
   }
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
