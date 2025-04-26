@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { styled, useTheme } from "@mui/material/styles";
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Toolbar,
@@ -67,6 +68,7 @@ const ChatDetail = ({
   socket,
 }) => {
   const theme = useTheme();
+  const navigate = useNavigate();
   const chatBodyRef = useRef(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
@@ -115,7 +117,33 @@ const ChatDetail = ({
   const handleCloseMembersDialog = () => {
     setMembersDialogOpen(false);
   };
+  const handleUpdateRole = ( targetUserId, newRole) => {
+    // Kiểm tra các giá trị quan trọng trước khi thực hiện hành động
+    if (!socket || !selectedChat?.conversationId || !currentUser) return;
+    console.log(selectedChat.id, targetUserId, newRole, currentUser._id);
+    // Gửi yêu cầu thay đổi quyền
+    socket.emit("update_member_role", selectedChat.id, targetUserId, newRole, currentUser._id);
   
+    // Lắng nghe kết quả
+    socket.on("member_role_updated", (data) => {
+      if (data.conversationId === selectedChat.id) {
+        console.log(`Quyền của thành viên ${targetUserId} đã được thay đổi thành ${newRole}`);
+        // Cập nhật UI nếu cần, ví dụ, cập nhật danh sách thành viên
+      }
+    });
+  
+    // Lắng nghe thông báo lỗi từ server
+    socket.on("error", (error) => {
+      console.error(error.message);
+    });
+  };
+  
+  
+  const handleChangeRole = ( userId) => {
+    // Ví dụ, thay đổi quyền của userId thành admin
+    handleUpdateRole( userId, "admin");
+  };
+    
   useEffect(() => {
     if (!socket) return;
     const handleConversationUpdated = (updated) => {
@@ -181,44 +209,44 @@ const ChatDetail = ({
   }, [socket, selectedChat, currentUser]);
   
 
-  useEffect(() => {
-    if (!socket?.on) return; // Kiểm tra socket có tồn tại và có hàm on
-
-    const handleReceive = (message) => {
-      if (message.conversationId === conversationId) {
-        setMessages((prev) => [...prev, message]);
-      }
-    };
-
-    socket.on("receive_message", handleReceive);
-
-    return () => {
-      socket.off("receive_message", handleReceive);
-    };
-  }, [conversationId, socket]); // Lắng nghe thay đổi của conversationId và socket
-
 //   useEffect(() => {
-//     if (!selectedChat || !currentUser || !socket?.emit || !conversationId)
-//       return;
+//     if (!socket?.on) return; // Kiểm tra socket có tồn tại và có hàm on
 
-//     socket.emit("join_conversation", {
-//       conversationId: conversationId, // Sử dụng conversationId từ props
-//       senderId: currentUser._id,
-//       // Không cần rereceiveId nữa nếu server chỉ cần conversationId
-//     });
-
-//     const handleJoinRoom = (data) => {
-//       // Không cần setConversationId ở đây nữa vì nó được truyền từ Chat component
-
-//       fetchMessages(data.conversationId); // Fetch tin nhắn khi đã tham gia room (server có thể emit lại conversationId để xác nhận)
+//     const handleReceive = (message) => {
+//       if (message.conversationId === conversationId) {
+//         setMessages((prev) => [...prev, message]);
+//       }
 //     };
 
-//     socket.on("joined_room", handleJoinRoom);
+//     socket.on("receive_message", handleReceive);
 
 //     return () => {
-//       socket.off("joined_room", handleJoinRoom);
+//       socket.off("receive_message", handleReceive);
 //     };
-//   }, [selectedChat, currentUser, socket, conversationId]);
+//   }, [conversationId, socket]); // Lắng nghe thay đổi của conversationId và socket
+
+  useEffect(() => {
+    if (!selectedChat || !currentUser || !socket?.emit || !conversationId)
+      return;
+
+    socket.emit("join_conversation", {
+      conversationId: conversationId, // Sử dụng conversationId từ props
+      senderId: currentUser._id,
+      // Không cần rereceiveId nữa nếu server chỉ cần conversationId
+    });
+
+    const handleJoinRoom = (data) => {
+      // Không cần setConversationId ở đây nữa vì nó được truyền từ Chat component
+
+      fetchMessages(data.conversationId); // Fetch tin nhắn khi đã tham gia room (server có thể emit lại conversationId để xác nhận)
+    };
+
+    socket.on("joined_room", handleJoinRoom);
+
+    return () => {
+      socket.off("joined_room", handleJoinRoom);
+    };
+  }, [selectedChat, currentUser, socket, conversationId]);
   useEffect(() => {
     if (!socket || !conversationId) return;
     socket.emit("join_conversation", {
@@ -343,6 +371,38 @@ const ChatDetail = ({
     setAnchorEl(event.currentTarget);
     setSelectedMessage(message);
   };
+  const [isLeaving, setIsLeaving] = useState(false);
+
+  const handleLeaveGroup = () => {
+    if (!selectedChat || !currentUser) return;
+  
+    setIsLeaving(true);
+  
+    let hasLeftGroup = false;
+  
+    socket.emit("leave_conversation", selectedChat.id, currentUser._id);
+  
+    socket.once("left_conversation", ({ conversationId }) => {
+      console.log(`Đã rời nhóm: ${conversationId}`);
+      hasLeftGroup = true;
+  
+      setIsLeaving(false);
+      
+  window.location.reload();
+  onBackToChatList();
+      if (hasLeftGroup) {
+        //window.location.reload(); // ✅ Reload đúng lúc
+      }
+    });
+  
+    socket.once("error", (error) => {
+      console.error("Lỗi khi rời nhóm:", error.message);
+      alert(error.message);
+      setIsLeaving(false);
+    });
+  };
+  
+  
 
   const handleCloseMenu = () => {
     setAnchorEl(null);
@@ -730,7 +790,7 @@ const ChatDetail = ({
             </List>
 
             {/* Leave Group Button */}
-            <Button fullWidth color="error" variant="text">
+            <Button fullWidth color="error" variant="text" onClick={handleLeaveGroup} disabled={isLeaving}>
               Rời nhóm
             </Button>
           </Box>
@@ -772,6 +832,16 @@ const ChatDetail = ({
            >
              Xóa
            </Button>
+           
+          )}
+          {currentUserRole === "admin" && member.userId._id !== currentUser._id && (
+             <Button
+             color="error"
+             onClick={() =>handleChangeRole(member.userId._id )}
+           >
+             Chuyển admin
+           </Button>
+           
           )}
         </ListItem>
       ))}

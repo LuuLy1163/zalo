@@ -28,7 +28,7 @@
     "react-dom": "^19.0.0",
     "react-google-recaptcha": "^3.1.0",
     "react-perfect-scrollbar": "^1.5.8",
-    "react-router-dom": "^7.2.0",
+    "react-router-dom": "^7.5.2",
     "react-scrollbars-custom": "^4.1.1",
     "rimraf": "^6.0.1",
     "socket.io-client": "^4.8.1"
