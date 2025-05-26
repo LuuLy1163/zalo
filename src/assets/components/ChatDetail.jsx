@@ -109,7 +109,7 @@ const ChatDetail = ({
         }
       });
   }, []); // Chạy khi component mount
-
+console.log(selectedChat)
   const handleOpenMembersDialog = () => {
     setMembersDialogOpen(true);
     socket.emit("getGroupMembers", { conversationId: selectedChat.id });
@@ -209,24 +209,6 @@ const ChatDetail = ({
     };
   }, [socket, selectedChat, currentUser]);
   
-
-//   useEffect(() => {
-//     if (!socket?.on) return; // Kiểm tra socket có tồn tại và có hàm on
-
-//     const handleReceive = (message) => {
-//       if (message.conversationId === conversationId) {
-//         setMessages((prev) => [...prev, message]);
-//       }
-//     };
-
-//     socket.on("receive_message", handleReceive);
-
-//     return () => {
-//       socket.off("receive_message", handleReceive);
-//     };
-//   }, [conversationId, socket]); // Lắng nghe thay đổi của conversationId và socket
-
-   // Join room & fetch messages once when socket and conversationId ready
   React.useEffect(() => {
     if (!socket || !conversationId || !currentUser?._id) return;
 
@@ -250,7 +232,11 @@ const ChatDetail = ({
 
     // Khi component unmount hoặc chuyển phòng khác thì leave room
     return () => {
-      socket.emit("leave_conversation", { conversationId, userId: currentUser._id });
+//       socket.emit("leave_conversation", {
+//   conversationIdRaw: selectedChat._id,
+//   userIdRaw: currentUser._id,
+// });
+
       socket.off("receive_message", handleReceiveMessage);
     };
   }, [socket, conversationId, currentUser?._id]);
@@ -557,12 +543,57 @@ socket.emit("leave_conversation", {
                       </Box>
                     </Box>
                   );
+                 case "system":
+                  return (
+                    <Box
+                      sx={{
+                        display: "flex",
+                        justifyContent: "center",
+                        my: 1,
+                      }}
+                    >
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontStyle: "italic",
+                          color: "gray",
+                          background: "transparent",
+                          p: 0.5,
+                        }}
+                      >
+                        {msg.content}
+                      </Typography>
+                    </Box>
+                  );
+
                 default:
                   return msg.content;
               }
             };
-
-            return (
+// Nếu là tin nhắn hệ thống => render khác hoàn toàn
+if (msg.messageType === "system") {
+  return (
+    <Box
+      key={index}
+      sx={{
+        display: "flex",
+        justifyContent: "center",
+        my: 2,
+      }}
+    >
+      <Typography
+        variant="caption"
+        sx={{
+          fontStyle: "italic",
+          color: "gray",
+          background: "transparent",
+        }}
+      >
+        {msg.content}
+      </Typography>
+    </Box>
+  );
+} else {return (
               <Box
                 key={index}
                 sx={{
@@ -639,7 +670,9 @@ socket.emit("leave_conversation", {
                   </Box>
                 </Tooltip>
               </Box>
-            );
+            );}
+
+            
           })}
           <div ref={messagesEndRef} />
         </Scrollbar>

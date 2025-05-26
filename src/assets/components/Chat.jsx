@@ -742,6 +742,7 @@ let chatInfo = {
                           </Button>
                       </CustomMessageDialogContent>
                   </Dialog>
+                  <ToastContainer />
     </Box>
     
   );
