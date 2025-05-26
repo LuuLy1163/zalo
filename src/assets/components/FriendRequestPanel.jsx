@@ -60,9 +60,32 @@ const acceptFriendRequest = async (authToken, senderPhone, receiverPhone) => {
     }
   };
 
+  // Hàm gọi API để từ chối lời mời kết bạn
+const rejectFriendRequest = async (authToken, phoneNumber) => {
+    try {
+        const response = await fetch('http://localhost:5000/api/friend/rejectFriendRequest', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${authToken}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ phoneNumber }), 
+        });
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error("Lỗi khi từ chối lời mời:", error);
+        throw error;
+    }
+};
+
 export default function FriendRequestPanel() {
   const [incomingRequests, setIncomingRequests] = useState([]);
-  const [outgoingRequests, setOutgoingRequests] = useState([]);
+  // const [outgoingRequests, setOutgoingRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const authToken = localStorage.getItem('accessToken');
@@ -97,11 +120,11 @@ export default function FriendRequestPanel() {
       const friendData = await fetchFriendData(authToken);
       if (friendData) {
         setIncomingRequests(friendData.pendingRequests || []);
-        const sentRequests = friendData.pendingRequests.filter(request => request._id !== userId);
+        // const sentRequests = friendData.pendingRequests.filter(request => request._id !== userId);
         // setOutgoingRequests(sentRequests);
       } else {
         setIncomingRequests([]);
-        setOutgoingRequests([]);
+        // setOutgoingRequests([]);
       }
     } catch (err) {
       setError(err.message);
@@ -136,6 +159,26 @@ export default function FriendRequestPanel() {
     }
   };
 
+    const handleRejectFriend = async (phoneNumber) => {
+    if (!authToken) {
+      setSnackbarMessage("Bạn chưa đăng nhập!");
+      setSnackbarSeverity("error");
+      setSnackbarOpen(true);
+      return;
+    }
+    try {
+      const result = await rejectFriendRequest(authToken, phoneNumber);
+      setSnackbarMessage(result.message || "Đã từ chối lời mời kết bạn.");
+      setSnackbarSeverity("success");
+      setSnackbarOpen(true);
+      loadFriendRequests(); // Tải lại danh sách lời mời
+    } catch (error) {
+      setSnackbarMessage(error.message || "Có lỗi xảy ra khi từ chối lời mời.");
+      setSnackbarSeverity("error");
+      setSnackbarOpen(true);
+    }
+  };
+  
   const handleCloseSnackbar = (event, reason) => {
     if (reason === 'clickaway') {
       return;
@@ -174,7 +217,10 @@ export default function FriendRequestPanel() {
                   </CardContent>
                   <Divider />
                   <CardActions sx={{ display: 'flex', px: 2, pb: 2, gap: 1 }}>
-                    <Button variant="outlined" fullWidth size="small" sx={{ textTransform: 'none', borderColor: '#ccc', borderRadius: 1, fontWeight: 500 }}>Từ chối</Button>
+                    <Button variant="outlined" fullWidth size="small" sx={{ textTransform: 'none', borderColor: '#ccc', borderRadius: 1, fontWeight: 500 }}
+                    onClick={() => handleRejectFriend(user.phoneNumber)}>
+                      Từ chối
+                      </Button>
                     <Button
                       variant="contained"
                       fullWidth
@@ -195,7 +241,7 @@ export default function FriendRequestPanel() {
         </AccordionDetails>
       </Accordion>
 
-      {/* ===== Lời mời đã gửi ===== */}
+      {/* ===== Lời mời đã gửi =====
       <Accordion>
         <AccordionSummary expandIcon={<ExpandMoreIcon />}>
           <Typography fontWeight={600} color="primary">Lời mời đã gửi ({outgoingRequests.length})</Typography>
@@ -226,23 +272,23 @@ export default function FriendRequestPanel() {
             )}
           </Grid>
         </AccordionDetails>
-      </Accordion>
+      </Accordion> */}
 
       {/* ===== Gợi ý kết bạn ===== */}
-      <Accordion>
+      {/* <Accordion>
         <AccordionSummary expandIcon={<ExpandMoreIcon />}>
           <Typography fontWeight={600}>Gợi ý kết bạn (0)</Typography>
         </AccordionSummary>
         <AccordionDetails>
           <Typography color="text.secondary">Chưa có gợi ý kết bạn nào.</Typography>
         </AccordionDetails>
-      </Accordion>
+      </Accordion> */}
 
       <Snackbar
         open={snackbarOpen}
         autoHideDuration={3000}
         onClose={handleCloseSnackbar}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
       >
         <Alert onClose={handleCloseSnackbar} severity={snackbarSeverity} sx={{ width: '100%' }}>
           {snackbarMessage}
