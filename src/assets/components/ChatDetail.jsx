@@ -147,7 +147,7 @@ const ChatDetail = ({
   useEffect(() => {
     if (!socket) return;
     const handleConversationUpdated = (updated) => {
-      if (updated._id === selectedChat.id) {
+      if (selectedChat && updated._id === selectedChat.id) {
         // cập nhật selectedChat và messages nếu cần
         // nếu bạn store selectedChat trong state cha, nhớ gọi prop callback
         setMembers(updated.members);
@@ -158,6 +158,7 @@ const ChatDetail = ({
       socket.off("conversation_updated", handleConversationUpdated);
     };
   }, [socket, selectedChat]);
+
   const availableFriendsToAdd = acceptedFriends.filter(
     (friend) => !members.some((m) => {
       const memberId = m.userId?._id || m.userId || m._id;
@@ -225,50 +226,40 @@ const ChatDetail = ({
 //     };
 //   }, [conversationId, socket]); // Lắng nghe thay đổi của conversationId và socket
 
-  useEffect(() => {
-    if (!selectedChat || !currentUser || !socket?.emit || !conversationId)
-      return;
+   // Join room & fetch messages once when socket and conversationId ready
+  React.useEffect(() => {
+    if (!socket || !conversationId || !currentUser?._id) return;
 
-    socket.emit("join_conversation", {
-      conversationId: conversationId, // Sử dụng conversationId từ props
-      senderId: currentUser._id,
-      // Không cần rereceiveId nữa nếu server chỉ cần conversationId
-    });
-
-    const handleJoinRoom = (data) => {
-      // Không cần setConversationId ở đây nữa vì nó được truyền từ Chat component
-
-      fetchMessages(data.conversationId); // Fetch tin nhắn khi đã tham gia room (server có thể emit lại conversationId để xác nhận)
-    };
-
-    socket.on("joined_room", handleJoinRoom);
-
-    return () => {
-      socket.off("joined_room", handleJoinRoom);
-    };
-  }, [selectedChat, currentUser, socket, conversationId]);
-  useEffect(() => {
-    if (!socket || !conversationId) return;
+    // Join conversation
     socket.emit("join_conversation", {
       conversationId,
       senderId: currentUser._id,
     });
-  
-    // fetch initial messages
+
+    // Fetch messages khi join xong (hoặc trực tiếp fetch luôn)
     fetchMessages(conversationId);
-  
+
+    // Listen các tin nhắn realtime từ server
+    const handleReceiveMessage = (message) => {
+      if (message.conversationId === conversationId) {
+        setMessages((prev) => [...prev, message]);
+      }
+    };
+
+    socket.on("receive_message", handleReceiveMessage);
+
+    // Khi component unmount hoặc chuyển phòng khác thì leave room
     return () => {
       socket.emit("leave_conversation", { conversationId, userId: currentUser._id });
+      socket.off("receive_message", handleReceiveMessage);
     };
-  }, [socket, conversationId]);  // chỉ hai cái này
-  
+  }, [socket, conversationId, currentUser?._id]);
+
+  // Hàm fetch tin nhắn
   const fetchMessages = async (convId) => {
-    if (!convId) return;
     try {
-      const res = await axios.get(
-        `http://localhost:5000/api/message/${convId}`
-      );
-      setMessages(res.data.data);
+      const res = await axios.get(`http://localhost:5000/api/message/${convId}`);
+      setMessages(res.data.data || []);
     } catch (err) {
       console.error("Lỗi tải tin nhắn:", err.response || err.message || err);
     }
@@ -374,35 +365,43 @@ const ChatDetail = ({
   const [isLeaving, setIsLeaving] = useState(false);
 
   const handleLeaveGroup = () => {
-    if (!selectedChat || !currentUser) return;
-  
-    setIsLeaving(true);
-  
-    let hasLeftGroup = false;
-  
-    socket.emit("leave_conversation", selectedChat.id, currentUser._id);
-  
-    socket.once("left_conversation", ({ conversationId }) => {
-      console.log(`Đã rời nhóm: ${conversationId}`);
-      hasLeftGroup = true;
-  
-      setIsLeaving(false);
-      
-  window.location.reload();
+    console.log(selectedChat)
+  if (!selectedChat || !currentUser) return;
+console.log("Gửi leave_conversation với: ", selectedChat?.id, currentUser?._id);
+
+  setIsLeaving(true);
+
+ const leaveHandler = ({ conversationId }) => {
+  console.log(`Đã rời nhóm: ${conversationId}`);
+  setIsLeaving(false);
+  socket.off("left_conversation", leaveHandler);
+  socket.off("leave_conversation_error", errorHandler);
   onBackToChatList();
-      if (hasLeftGroup) {
-        //window.location.reload(); // ✅ Reload đúng lúc
-      }
-    });
-  
-    socket.once("error", (error) => {
-      console.error("Lỗi khi rời nhóm:", error.message);
-      alert(error.message);
-      setIsLeaving(false);
-    });
+  window.location.reload();
+};
+
+
+  const errorHandler = (error) => {
+    console.error("Lỗi khi rời nhóm:", error.message);
+    alert(error.message);
+    setIsLeaving(false);
+    socket.off("left_conversation", leaveHandler); // Dọn listener nếu có lỗi
+    socket.off("leave_conversation_error", errorHandler);
   };
-  
-  
+
+  socket.off("left_conversation", leaveHandler); // Dọn sạch trước khi đăng ký mới
+  socket.off("leave_conversation_error", errorHandler);
+
+  socket.on("left_conversation", leaveHandler);
+  socket.on("leave_conversation_error", errorHandler);
+socket.emit("leave_conversation", {
+  conversationIdRaw: selectedChat.conversationId,
+  userIdRaw: currentUser._id,
+});
+
+
+};
+
 
   const handleCloseMenu = () => {
     setAnchorEl(null);
@@ -446,11 +445,9 @@ const ChatDetail = ({
     handleCloseMenu();
   };
 
-  useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [messages]); // Mỗi khi messages thay đổi, tự động cuộn xuống cuối
+  React.useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   if (!selectedChat) {
     return (
