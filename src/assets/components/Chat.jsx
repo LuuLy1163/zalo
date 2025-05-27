@@ -465,38 +465,77 @@ let chatInfo = {
         };
 
          // Hàm mới để xử lý việc nhắn tin trực tiếp từ kết quả tìm kiếm
-    const handleMessageFriend = (user) => {
-        const existingChat = chatList.find(chat => 
+ const handleMessageFriend = async (user) => {
+
+   const existingChat = chatList.find(chat => 
             chat.type === 'private' && chat.id === user._id
         );
+console.log("Exit:",existingChat )
+  if (existingChat) {
+    handleChatClick(existingChat);
+  } else {
+    try {
+      const token = localStorage.getItem("accessToken");
 
-        if (existingChat) {
-            handleChatClick(existingChat);
-        } else {
-            // Trường hợp này có thể xảy ra nếu người đó là bạn bè nhưng chưa có cuộc trò chuyện nào được khởi tạo.
-            // Cần tạo một cuộc trò chuyện mới hoặc xử lý tùy theo logic backend của bạn.
-            // Hiện tại, chúng ta sẽ giả định rằng nếu đã là bạn bè thì luôn có cuộc trò chuyện.
-            // Nếu API backend của bạn không tự động tạo conversation khi kết bạn, bạn cần thêm logic tạo conversation ở đây.
-            // Ví dụ:
-            // const newChat = {
-            //     id: user._id,
-            //     name: user.username,
-            //     avatar: user.avatarURL || '/static/images/avatar/default.jpg',
-            //     lastMessage: '',
-            //     time: '',
-            //     type: 'private',
-            //     conversationId: 'NEWLY_CREATED_CONVERSATION_ID_FROM_BACKEND'
-            // };
-            // setChatList(prev => [...prev, newChat]);
-            // handleChatClick(newChat);
-            setDialogMessage('Không tìm thấy cuộc trò chuyện. Vui lòng thử lại.');
-            setDialogOpen(true);
-            console.warn('Không tìm thấy cuộc trò chuyện hiện có cho người bạn này.');
+      const res = await axios.post(
+        "http://localhost:5000/api/conversation/conversation",
+        {
+          members: [
+            { userId: currentUser._id, role: "member" },
+            { userId: user._id, role: "member" }
+          ],
+          type: "private",
+          name: `${currentUser._id} - ${user._id}`, // có thể giữ hoặc bỏ
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         }
-        setIsSearching(false); // Thoát khỏi chế độ tìm kiếm
-        setSearchKeyword('');
-        setSearchResults([]);
-    };
+      );
+
+      const conversation = res.data;
+      console.log(conversation)
+      if (conversation) {
+  // Tìm user đối phương trong members (để lấy avatar, name, phone,...)
+  
+const otherUser = user; // user được truyền vào hàm, có avatar, username, phoneNumber...
+
+const newChat = {
+  id: otherUser._id,
+  conversationId: conversation._id,
+  avatar: otherUser.avatarURL || "/static/images/avatar/default.jpg",
+  name: otherUser.username || "Không tên",
+  lastMessage: "",      // Có thể set rỗng hoặc lấy từ conversation nếu có
+  time: "",             // Có thể lấy updatedAt của conversation rồi format lại
+  unreadCount: 0,
+  updatedAt: conversation.updatedAt || new Date(),
+  type: conversation.type,
+  phoneNumber: otherUser.phoneNumber || undefined,
+};
+  setChatList(prev => {
+    const exists = prev.some(chat => chat.conversationId === conversation._id);
+    if (!exists) return [...prev, newChat];
+    return prev;
+  });
+
+  handleChatClick(newChat);} else {
+        setDialogMessage("Không thể tạo hoặc tìm cuộc trò chuyện.");
+        setDialogOpen(true);
+      }
+    } catch (error) {
+      console.error("Lỗi khi tạo hoặc tìm cuộc trò chuyện:", error.response?.data || error.message);
+      setDialogMessage("Lỗi khi tạo hoặc tìm cuộc trò chuyện.");
+      setDialogOpen(true);
+    }
+  }
+
+  setIsSearching(false);
+  setSearchKeyword('');
+  setSearchResults([]);
+};
+
+
 
     const handleDialogClose = () => {
         setDialogOpen(false); 
